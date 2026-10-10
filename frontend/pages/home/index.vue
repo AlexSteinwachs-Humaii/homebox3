@@ -114,7 +114,12 @@
       </section>
 
       <section>
-        <Subtitle> {{ $t("home.storage_locations") }} </Subtitle>
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+          <Subtitle> {{ $t("home.storage_locations") }} </Subtitle>
+          <NuxtLink to="/locations" class="text-sm font-semibold text-primary hover:underline">
+            {{ $t("home.all_locations") }}
+          </NuxtLink>
+        </div>
         <p v-if="locations.length === 0" class="ml-2 text-sm">
           {{ $t("locations.no_results") }}
         </p>
@@ -124,12 +129,17 @@
       </section>
 
       <section>
-        <Subtitle> {{ $t("home.tags") }} </Subtitle>
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+          <Subtitle> {{ $t("home.tags") }} </Subtitle>
+          <NuxtLink to="/tags" class="text-sm font-semibold text-primary hover:underline">
+            {{ $t("home.all_tags") }}
+          </NuxtLink>
+        </div>
         <p v-if="tags.length === 0" class="ml-2 text-sm">
           {{ $t("tags.no_results") }}
         </p>
         <div v-else class="flex flex-wrap gap-4">
-          <TagChip v-for="tag in tags" :key="tag.id" size="lg" :tag="tag" class="shadow-md" />
+          <TagChip v-for="tag in tags" :key="tag.id" size="lg" :tag="tag" />
         </div>
       </section>
     </BaseContainer>

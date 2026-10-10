@@ -6,6 +6,8 @@ export interface SidebarProps {
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
   class?: HTMLAttributes["class"];
+  /** Optional presentation scope for the teleported mobile Sheet. */
+  mobileContentClass?: HTMLAttributes["class"];
 }
 
 export { default as Sidebar } from "./Sidebar.vue";

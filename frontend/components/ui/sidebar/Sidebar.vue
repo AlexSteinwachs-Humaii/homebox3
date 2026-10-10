@@ -31,7 +31,9 @@
       data-sidebar="sidebar"
       data-mobile="true"
       :side="side"
-      class="bg-sidebar text-sidebar-foreground z-40 w-[--sidebar-width] p-0 [&>button]:hidden"
+      :class="
+        cn('bg-sidebar text-sidebar-foreground z-40 w-[--sidebar-width] p-0 [&>button]:hidden', props.mobileContentClass)
+      "
       :style="{
         '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
       }"

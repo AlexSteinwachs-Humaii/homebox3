@@ -1077,3 +1077,312 @@ h6 {
   word-break: normal;
   hyphens: auto;
 }
+/* Home-only visual foundation. Attach home-presentation to a route container
+ * (or explicitly to portal content), never body. These tokens intentionally
+ * pair every semantic foreground/background, independent of the saved theme.
+ * Descendant home-* primitives are opt-in; shared UI variants stay unchanged.
+ */
+.home-presentation {
+  --home-purple: #4F2582;
+  --home-page: #f7f6f9;
+  --home-surface: #ffffff;
+  --home-soft: #eee8f5;
+  --home-ink: #29262e;
+  --home-muted: #625b6c;
+  --home-border: #dfdbe6;
+  --home-radius: 4px;
+  --home-font-ui: Arial, Helvetica, system-ui, sans-serif;
+  --home-font-editorial: Georgia, 'Times New Roman', serif;
+
+  /* Existing Tailwind/shadcn components consume HSL channels. */
+  --primary: 267.0968 55.6886% 32.7451%;
+  --primary-foreground: 0 0% 100%;
+  --background: 0 0% 100%;
+  --background-accent: 260 20% 97%;
+  --foreground: 263 10% 16%;
+  --secondary: 260 20% 97%;
+  --secondary-foreground: 263 10% 16%;
+  --accent: 268 39% 94%;
+  --accent-foreground: 267.0968 55.6886% 32.7451%;
+  --muted: 260 20% 97%;
+  --muted-foreground: 265 9% 39%;
+  --card: 0 0% 100%;
+  --card-foreground: 263 10% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 263 10% 16%;
+  --destructive: 0 72% 38%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 262 18% 82%;
+  --border: 262 18% 88%;
+  --ring: 267.0968 55.6886% 32.7451%;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 263 10% 16%;
+  --sidebar-primary: 267.0968 55.6886% 32.7451%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 268 39% 94%;
+  --sidebar-accent-foreground: 267.0968 55.6886% 32.7451%;
+  --sidebar-border: 262 18% 88%;
+  --sidebar-ring: 267.0968 55.6886% 32.7451%;
+  --radius: 4px;
+
+  color: var(--home-ink);
+  background-color: var(--home-page);
+  font-family: var(--home-font-ui);
+}
+
+.home-presentation .home-surface,
+.home-presentation .home-statistic {
+  color: var(--home-ink);
+  background: var(--home-surface);
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius);
+  box-shadow: none;
+}
+
+.home-presentation .home-section {
+  padding-block: 1.25rem;
+  border-top: 1px solid var(--home-border);
+}
+
+.home-presentation .home-section-title {
+  color: var(--home-ink);
+  font-family: var(--home-font-ui);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* Serif is reserved for the editorial headline, not every heading. */
+.home-presentation .home-headline {
+  color: var(--home-ink);
+  font-family: var(--home-font-editorial);
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.home-presentation .home-eyebrow {
+  color: var(--home-purple);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.home-presentation .home-muted {
+  color: var(--home-muted);
+}
+
+.home-presentation .home-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--home-purple);
+  border-radius: var(--home-radius);
+  background: var(--home-purple);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.home-presentation .home-action:hover {
+  background: #3c1c63;
+  color: #ffffff;
+}
+
+.home-presentation .home-action-outline {
+  background: var(--home-surface);
+  color: var(--home-purple);
+}
+
+.home-presentation .home-action-outline:hover {
+  background: var(--home-soft);
+  color: var(--home-purple);
+}
+
+.home-presentation .home-statistic {
+  padding: 1rem 1.25rem;
+  border-top: 3px solid var(--home-purple);
+}
+
+.home-presentation .home-statistic-value {
+  color: var(--home-purple);
+  font-size: 2rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.home-presentation .home-statistic-featured {
+  background: var(--home-purple);
+  color: #ffffff;
+  border-color: var(--home-purple);
+}
+
+.home-presentation .home-statistic-featured .home-statistic-value,
+.home-presentation .home-statistic-featured .home-muted {
+  color: #ffffff;
+}
+
+/* The white separation keeps the purple indicator visible on purple actions
+ * too. Do not depend on a theme's outline-none or low-contrast ring choice. */
+.home-presentation:focus-visible,
+.home-presentation :focus-visible {
+  outline: 2px solid var(--home-purple);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px #ffffff;
+}
+
+@media (forced-colors: active) {
+  .home-presentation:focus-visible,
+  .home-presentation :focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* Functional Home shell: geometry is opt-in; shared header heights stay intact. */
+.home-presentation::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: 6px;
+  background: var(--home-purple);
+  z-index: 50;
+  pointer-events: none;
+}
+.home-presentation .home-shell-sidebar-header {
+  align-items: stretch;
+  padding: 28px 20px 14px;
+  gap: 12px;
+}
+.home-presentation .home-shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--home-purple);
+  font-size: 26px;
+  font-weight: 700;
+}
+.home-presentation .home-shell-sidebar-header [data-sidebar="group-label"] {
+  padding: 0;
+  height: auto;
+  margin-bottom: 14px;
+  color: var(--home-muted);
+  font-size: 13px;
+}
+.home-presentation .home-shell-sidebar-header [role="combobox"] {
+  height: 44px;
+  filter: none;
+  font-weight: 700;
+}
+.home-presentation .home-shell-create {
+  height: 44px;
+  filter: none;
+  font-size: 15px;
+  font-weight: 700;
+}
+.home-presentation [data-sidebar="group"] {
+  padding: 8px 20px;
+}
+.home-presentation [data-sidebar="menu-button"] {
+  font-size: 14px;
+}
+.home-presentation [data-sidebar="menu-button"][aria-current="page"] {
+  border-left: 3px solid var(--home-purple);
+  font-weight: 700;
+}
+.home-presentation .home-shell-collection {
+  margin-top: 12px;
+}
+.home-presentation .home-shell-collection > a {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.home-presentation .home-shell-submenu {
+  border-color: var(--home-border);
+}
+.home-presentation .home-shell-submenu [data-sidebar="menu-button"] {
+  font-size: 13px;
+}
+.home-presentation [data-sidebar="footer"] {
+  margin: 0 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--home-border);
+}
+.home-presentation .home-shell-header {
+  background: var(--home-surface);
+  border-bottom: 1px solid var(--home-border);
+  box-shadow: none;
+  transform: none;
+  padding-inline: 28px;
+}
+.home-presentation .home-shell-header input {
+  background: var(--home-page);
+}
+.home-presentation .home-shell-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-size: 13px;
+}
+.home-presentation .home-shell-breadcrumb > span:first-child {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--home-muted);
+}
+.home-presentation .home-shell-scanner {
+  gap: 8px;
+  color: var(--home-purple);
+  font-weight: 700;
+}
+.home-presentation .home-shell-profile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--home-soft);
+  color: var(--home-purple);
+  font-size: 12px;
+  font-weight: 700;
+}
+/* Do not fight Reka's collapsed dimensions or hide the mobile Sheet content. */
+.home-presentation .group[data-collapsible="icon"] .home-shell-brand {
+  display: none;
+}
+.home-presentation .group[data-collapsible="icon"] .home-shell-sidebar-header,
+.home-presentation .group[data-collapsible="icon"] [data-sidebar="group"] {
+  padding: 8px;
+}
+.home-presentation .group[data-collapsible="icon"] [data-sidebar="footer"] {
+  margin: 0;
+  padding: 8px;
+}
+@media (max-width: 639px) {
+  .home-presentation .home-shell-header {
+    padding-inline: 8px;
+  }
+}
+.home-presentation [data-sidebar="sidebar"] {
+  border-right: 1px solid var(--home-border);
+}
+.home-presentation [data-sidebar="menu-button"][data-size="lg"] {
+  height: 40px;
+}
+.home-presentation .home-shell-submenu [data-sidebar="menu-button"] {
+  height: auto;
+  min-height: 28px;
+}
+
+.home-presentation .home-shell-header [data-sidebar="trigger"] svg {
+  color: var(--home-muted);
+}

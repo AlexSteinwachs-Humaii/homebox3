@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :class="homePresentationClass">
     <!--
     Confirmation Modal is a singleton used by all components so we render
     it here to ensure it's always available. Possibly could move this further
@@ -17,25 +17,34 @@
     <CollectionJoinModal />
     <CollectionInviteCreateModal />
     <SidebarProvider :default-open="sidebarState">
-      <Sidebar collapsible="icon">
-        <SidebarHeader class="items-center">
+      <Sidebar collapsible="icon" :mobile-content-class="homePresentationClass">
+        <SidebarHeader class="home-shell-sidebar-header items-center">
+          <NuxtLink
+            v-if="homePresentationClass"
+            class="home-shell-brand group-data-[collapsible=icon]:hidden"
+            to="/home"
+          >
+            <AppLogo class="size-9 shrink-0" />
+            <span>HomeBox</span>
+          </NuxtLink>
           <SidebarGroupLabel class="text-base group-data-[collapsible=icon]:hidden">{{
             $t("global.welcome", { username: username })
           }}</SidebarGroupLabel>
-          <NuxtLink class="group-data-[collapsible=icon]:hidden" to="/home">
+          <NuxtLink v-if="!homePresentationClass" class="group-data-[collapsible=icon]:hidden" to="/home">
             <div class="flex size-24 items-center justify-center rounded-full bg-background-accent p-4">
               <AppLogo />
             </div>
           </NuxtLink>
 
-          <CollectionSelector />
+          <CollectionSelector :presentation-class="homePresentationClass" />
 
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <SidebarMenuButton
-                class="flex justify-center bg-primary text-primary-foreground drop-shadow-md hover:bg-primary/90 active:bg-primary/90 active:text-primary-foreground group-data-[collapsible=icon]:justify-start"
+                class="home-shell-create flex justify-center bg-primary text-primary-foreground drop-shadow-md hover:bg-primary/90 active:bg-primary/90 active:text-primary-foreground group-data-[collapsible=icon]:justify-start"
                 :tooltip="$t('global.create')"
-                hotkey="Shortcut: Ctrl+`"
+                :hotkey="homePresentationClass ? undefined : 'Shortcut: Ctrl+`'"
+                title="Shortcut: Ctrl+`"
               >
                 <MdiPlus />
                 <span>
@@ -43,7 +52,10 @@
                 </span>
               </SidebarMenuButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent class="z-40 min-w-[var(--reka-dropdown-menu-trigger-width)]">
+            <DropdownMenuContent
+              class="z-40 min-w-[var(--reka-dropdown-menu-trigger-width)]"
+              :class="homePresentationClass"
+            >
               <DropdownMenuItem
                 v-for="btn in dropdown"
                 :key="btn.id"
@@ -53,10 +65,14 @@
                     if (btn.dialogId === DialogID.CreateEntity) {
                       if (btn.id == 0)
                         // create item
-                        openDialog(btn.dialogId, { params: { baseType: 'item' } });
+                        openDialog(btn.dialogId, {
+                          params: { baseType: 'item' },
+                        });
                       else if (btn.id == 1)
                         // create location
-                        openDialog(btn.dialogId, { params: { baseType: 'location' } });
+                        openDialog(btn.dialogId, {
+                          params: { baseType: 'location' },
+                        });
                     } else {
                       openDialog(btn.dialogId as NoParamDialogIDs);
                     }
@@ -81,6 +97,7 @@
                 <SidebarMenuItem v-if="!n.collapsible" :key="n.id">
                   <SidebarMenuLink
                     :href="n.to"
+                    :aria-current="n.active?.value ? 'page' : undefined"
                     :class="{
                       'bg-accent text-accent-foreground': n.active?.value,
                       'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
@@ -94,9 +111,10 @@
 
                 <Collapsible v-else default-open class="group/collapsible">
                   <SidebarMenuItem>
-                    <SidebarMenuItem class="flex gap-1">
+                    <SidebarMenuItem class="home-shell-collection flex gap-1">
                       <SidebarMenuLink
                         :href="n.to"
+                        :aria-current="n.active?.value ? 'page' : undefined"
                         :class="{
                           'bg-accent text-accent-foreground': n.active?.value,
                           'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
@@ -107,7 +125,10 @@
                         <span>{{ n.name.value }}</span>
                       </SidebarMenuLink>
                       <CollapsibleTrigger as-child>
-                        <SidebarMenuButton class="flex size-12 items-center justify-center">
+                        <SidebarMenuButton
+                          :aria-label="$t('menu.collection')"
+                          class="flex size-12 items-center justify-center"
+                        >
                           <MdiChevronRight
                             class="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                           />
@@ -115,7 +136,7 @@
                       </CollapsibleTrigger>
                     </SidebarMenuItem>
                     <CollapsibleContent>
-                      <SidebarMenuSub>
+                      <SidebarMenuSub class="home-shell-submenu">
                         <SidebarMenuSubItem v-for="c in n.collapsible" :key="c.id">
                           <SidebarMenuLink
                             :href="c.to"
@@ -142,7 +163,7 @@
                     'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
                   }"
                   :tooltip="$t('menu.scanner')"
-                  @click.prevent="openDialog(DialogID.Scanner)"
+                  @click.prevent="openScanner"
                 >
                   <MdiQrcodeScan />
                   <span>{{ $t("menu.scanner") }}</span>
@@ -176,14 +197,19 @@
           </div>
           <!-- IMPORTANT: if you change the height of this div, alter the top value in the item edit page-->
           <div
-            class="sticky top-0 z-20 flex h-[var(--header-height-mobile)] translate-y-[-0.5px] flex-col bg-secondary p-2 shadow-md sm:h-[var(--header-height)] sm:flex-row"
+            class="home-shell-header sticky top-0 z-20 flex h-[var(--header-height-mobile)] translate-y-[-0.5px] flex-col bg-secondary p-2 shadow-md sm:h-[var(--header-height)] sm:flex-row"
             :class="{
               'lg:hidden': preferences.displayLegacyHeader,
             }"
           >
             <div class="flex h-1/2 items-center gap-2 sm:h-auto">
-              <SidebarTrigger variant="default" />
-              <NuxtLink to="/home">
+              <SidebarTrigger :variant="homePresentationClass ? 'ghost' : 'default'" />
+              <div v-if="homePresentationClass" class="home-shell-breadcrumb">
+                <span :title="selectedCollection?.name">{{ selectedCollection?.name || $t("menu.collection") }}</span>
+                <span aria-hidden="true">/</span>
+                <NuxtLink to="/home" aria-current="page">{{ $t("menu.home") }}</NuxtLink>
+              </div>
+              <NuxtLink v-else to="/home">
                 <AppHeaderText class="h-6" />
               </NuxtLink>
             </div>
@@ -193,19 +219,36 @@
                 v-model:model-value="search"
                 class="h-9 grow sm:max-w-sm"
                 :placeholder="$t('global.search')"
+                :aria-label="$t('global.search')"
                 type="search"
                 @keyup.enter="triggerSearch"
               />
               <div>
-                <Button size="icon" @click="triggerSearch">
+                <Button size="icon" :aria-label="$t('global.search')" @click="triggerSearch">
                   <MdiMagnify />
                 </Button>
               </div>
               <div>
-                <Button size="icon" @click="openScanner">
+                <Button
+                  :size="homePresentationClass ? 'default' : 'icon'"
+                  :variant="homePresentationClass ? 'outline' : 'default'"
+                  :aria-label="$t('menu.scanner')"
+                  class="home-shell-scanner"
+                  @click="openScanner"
+                >
                   <MdiQrcodeScan />
+                  <span v-if="homePresentationClass" class="hidden sm:inline">{{ $t("menu.scanner") }}</span>
                 </Button>
               </div>
+              <NuxtLink
+                v-if="homePresentationClass"
+                to="/profile"
+                class="home-shell-profile"
+                :aria-label="`${$t('menu.profile')}: ${username}`"
+                :title="username"
+              >
+                {{ profileInitials }}
+              </NuxtLink>
             </div>
           </div>
 
@@ -302,7 +345,17 @@
   import CollectionInviteCreateModal from "~/components/Collection/InviteCreateModal.vue";
 
   const { t, locale } = useI18n();
-  const username = computed(() => authCtx.user?.name || "User");
+  const username = computed(() => authCtx.user?.name || t("menu.profile"));
+  const profileInitials = computed(() =>
+    username.value
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map(part => Array.from(part)[0])
+      .join("")
+      .toLocaleUpperCase()
+  );
+  const { selectedCollection } = useCollections();
 
   const { openDialog } = useDialog();
 
@@ -383,6 +436,11 @@
   ];
 
   const route = useRoute();
+  // Scope tokens to this route, never to body or the saved theme preference.
+  // Pass the same opt-in scope to content rendered outside #app by portals.
+  const homePresentationClass = computed(() =>
+    route.path.replace(/\/$/, "") === "/home" ? "home-presentation" : undefined
+  );
   const router = useRouter();
 
   const nav: {

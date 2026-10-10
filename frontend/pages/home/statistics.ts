@@ -1,10 +1,13 @@
 import { useI18n } from "vue-i18n";
+import type { StatsVariant } from "~~/components/global/StatCard/types";
 import type { UserClient } from "~~/lib/api/user";
 
 type StatCard = {
   label: string;
   value: number;
   type: "currency" | "number";
+  subtitle: string;
+  variant: StatsVariant;
 };
 
 export function statCardData(api: UserClient) {
@@ -21,28 +24,39 @@ export function statCardData(api: UserClient) {
     }
   );
 
-  return computed(() => {
+  const stats = computed(() => {
     return [
       {
         label: t("home.total_value"),
+        subtitle: t("home.recorded_inventory_value"),
+        variant: "filled",
         value: statistics.value?.totalItemPrice || 0,
         type: "currency",
       },
       {
         label: t("home.total_items"),
+        subtitle: t("home.items_in_collection"),
+        variant: "outline",
         value: statistics.value?.totalItems || 0,
         type: "number",
       },
       {
         label: t("home.total_locations"),
+        subtitle: t("home.places_to_keep_things"),
+        variant: "outline",
         value: statistics.value?.totalLocations || 0,
         type: "number",
       },
       {
         label: t("home.total_tags"),
+        subtitle: t("home.ways_to_organize"),
+        variant: "outline",
         value: statistics.value?.totalTags || 0,
         type: "number",
       },
     ] as StatCard[];
   });
+
+  // The overview and cards share the same request and loading state.
+  return { stats, statistics };
 }

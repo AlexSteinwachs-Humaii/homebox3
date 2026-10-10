@@ -26,11 +26,13 @@
   import DataTableControls from "./data-table-controls.vue";
   import type { Pagination } from "../pagination";
   import Switch from "~/components/ui/switch/Switch.vue";
+  import { resolveTableHeaders } from "./column-visibility";
 
   const props = defineProps<{
     columns: ColumnDef<EntitySummary, TValue>[];
     data: EntitySummary[];
     disableControls?: boolean;
+    visibleColumnIds?: string[];
     view: "table" | "card";
     locationFlatTree?: FlatTreeItem[];
     externalPagination?: Pagination;
@@ -43,17 +45,12 @@
   const preferences = useViewPreferences();
   const defaultPageSize = preferences.value.itemsPerTablePage;
   const tableHeadersData = preferences.value.tableHeaders;
-  const defaultVisible = ["name", "quantity", "insured", "purchasePrice"];
-
-  const tableHeaders = computed(
-    () =>
-      tableHeadersData ??
-      props.columns
-        .filter(c => c.enableHiding !== false)
-        .map(c => ({
-          value: c.id!,
-          enabled: defaultVisible.includes(c.id ?? ""),
-        }))
+  const tableHeaders = computed(() =>
+    resolveTableHeaders(
+      props.columns.filter(c => c.enableHiding !== false).map(c => c.id!),
+      tableHeadersData,
+      props.visibleColumnIds
+    )
   );
 
   const sorting = ref<SortingState>([]);
@@ -106,7 +103,9 @@
         return sorting.value;
       },
       get columnVisibility() {
-        return columnVisibility.value;
+        return props.visibleColumnIds !== undefined
+          ? Object.fromEntries(tableHeaders.value.map(h => [h.value, h.enabled]))
+          : columnVisibility.value;
       },
       get rowSelection() {
         return rowSelection.value;
@@ -124,6 +123,8 @@
   });
 
   const persistHeaders = () => {
+    if (props.visibleColumnIds !== undefined) return;
+
     const headers = table
       .getAllColumns()
       .filter(column => column.getCanHide())

@@ -497,14 +497,27 @@
         "entity_type": "Entity Type"
     },
     "home": {
+        "collection_overview": "{collection} · Collection overview",
+        "overview_headline": "A place for everything.",
+        "overview_supporting": "Your inventory, organized. Find what you own and where it belongs.",
+        "welcome_home": "Welcome home, {name}.",
+        "collection_summary": "{items} items across {locations} locations.",
+        "one_collection": "One collection. All in view.",
         "quick_statistics": "Quick Statistics",
         "recently_added": "Recently Added",
+        "search_inventory": "Search inventory",
         "storage_locations": "Storage Locations",
+        "all_locations": "All locations",
         "tags": "Tags",
+        "all_tags": "All tags",
         "total_items": "Total Items",
         "total_locations": "Total Locations",
         "total_tags": "Total Tags",
-        "total_value": "Total Value"
+        "total_value": "Total Value",
+        "recorded_inventory_value": "Recorded inventory value",
+        "items_in_collection": "Items in your collection",
+        "places_to_keep_things": "Places to keep things",
+        "ways_to_organize": "Ways to organize"
     },
     "index": {
         "back_to_login": "Back to login",

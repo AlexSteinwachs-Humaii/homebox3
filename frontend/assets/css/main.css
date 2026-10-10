@@ -1045,6 +1045,57 @@
   font-weight: 700;
 }
 
+/* Opt-in direction, not a theme. Keep outside Tailwind layers so it is available
+   even before a route opts in, without a theme-picker entry or a safelist. */
+.direction-evolve {
+  /* Local faces are optional; offline fallbacks preserve the two type roles. */
+  --font-sans: Roboto, Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: Petrona, Georgia, serif;
+  font-family: var(--font-sans);
+  --background: 270 20% 97%;
+  --background-accent: 270 20% 95%;
+  --foreground: 270 8% 16%;
+  --primary: 267 56% 33%; /* #4F2582 */
+  --primary-foreground: 0 0% 98%;
+  --secondary: 270 20% 95%;
+  --secondary-foreground: 270 8% 16%;
+  --accent: 267 40% 94%;
+  --accent-foreground: 267 56% 33%;
+  --muted: 270 20% 95%;
+  --muted-foreground: 270 6% 40%;
+  --card: 0 0% 100%;
+  --card-foreground: 270 8% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 270 8% 16%;
+  --border: 270 20% 88%;
+  --input: 270 20% 88%;
+  --ring: 267 56% 33%;
+  --sidebar-background: 270 20% 98%;
+  --sidebar-foreground: 270 8% 16%;
+  --sidebar-primary: 267 56% 33%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 267 40% 94%;
+  --sidebar-accent-foreground: 267 56% 33%;
+  --sidebar-border: 270 20% 88%;
+  --sidebar-ring: 267 56% 33%;
+  --radius: 0.25rem;
+}
+
+/* Display is opt-in for the welcome headline, never a global heading style. */
+.direction-evolve .font-display {
+  font-family: var(--font-display);
+}
+
+/* Reset only the shadow contributions, not box-shadow/filter themselves:
+   Tailwind focus rings and other filter utilities must keep working. */
+.direction-evolve:is(.shadow, .shadow-sm, .shadow-md, .drop-shadow-md),
+.direction-evolve :is(.shadow, .shadow-sm, .shadow-md, .drop-shadow-md) {
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-drop-shadow: drop-shadow(0 0 #0000);
+  border: 1px solid hsl(var(--border));
+}
+
 :root {
   --header-height: 4rem;
   --header-height-mobile: 7rem;

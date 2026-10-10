@@ -209,6 +209,26 @@ func (s *IOSheet) ReadItems(ctx context.Context, entities []repo.EntityOut, gid 
 		return item.ID, item
 	})
 
+	// Filters may omit the parent from the output. Load its metadata in one
+	// collection-scoped batch, without adding it (or its fields) to the sheet.
+	missingParents := map[uuid.UUID]struct{}{}
+	for _, item := range entities {
+		if item.Parent != nil {
+			if _, ok := entitiesByID[item.Parent.ID]; !ok {
+				missingParents[item.Parent.ID] = struct{}{}
+			}
+		}
+	}
+	if len(missingParents) > 0 {
+		parents, err := repos.Entities.GetExportParents(ctx, gid, lo.Keys(missingParents))
+		if err != nil {
+			return err
+		}
+		for _, parent := range parents {
+			entitiesByID[parent.ID] = parent
+		}
+	}
+
 	for i := range entities {
 		item := entities[i]
 
@@ -217,7 +237,7 @@ func (s *IOSheet) ReadItems(ctx context.Context, entities []repo.EntityOut, gid 
 		if item.Parent != nil {
 			locationParentID := item.Parent.ID
 
-			if parent, ok := entitiesByID[item.Parent.ID]; ok && parent.EntityType != nil && !parent.EntityType.IsLocation {
+			if parent, ok := entitiesByID[item.Parent.ID]; ok && (parent.EntityType == nil || !parent.EntityType.IsLocation) {
 				parentImportRef = parent.ImportRef
 				locationParentID = uuid.Nil
 				if parent.Parent != nil {

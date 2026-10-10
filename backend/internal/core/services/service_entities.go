@@ -563,6 +563,20 @@ func (svc *EntityService) patchCSVParentRefs(ctx context.Context, gid uuid.UUID,
 	return nil
 }
 
+// ExportFilteredCSV exports inventory matches without applying listing pagination.
+// ExportCSV remains the full-collection export used by existing clients.
+func (svc *EntityService) ExportFilteredCSV(ctx context.Context, gid uuid.UUID, q repo.EntityQuery, hbURL string) ([][]string, error) {
+	items, err := svc.repo.Entities.GetFilteredExport(ctx, gid, q)
+	if err != nil {
+		return nil, err
+	}
+	sheet := reporting.IOSheet{}
+	if err := sheet.ReadItems(ctx, items, gid, svc.repo, hbURL); err != nil {
+		return nil, err
+	}
+	return sheet.CSV()
+}
+
 func (svc *EntityService) ExportCSV(ctx context.Context, gid uuid.UUID, hbURL string) ([][]string, error) {
 	ctx, span := entityServiceTracer().Start(ctx, "service.EntityService.ExportCSV",
 		trace.WithAttributes(attribute.String("group.id", gid.String())))

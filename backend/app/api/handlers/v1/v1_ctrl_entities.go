@@ -43,6 +43,57 @@ func startEntityCtrlSpan(ctx context.Context, name string, attrs ...attribute.Ke
 	return entityCtrlTracer().Start(ctx, name, trace.WithAttributes(attrs...))
 }
 
+func extractEntityQuery(r *http.Request) repo.EntityQuery {
+	params := r.URL.Query()
+
+	filterFieldItems := func(raw []string) []repo.FieldQuery {
+		return lo.FilterMap(raw, func(v string, _ int) (repo.FieldQuery, bool) {
+			parts := strings.SplitN(v, "=", 2)
+			if len(parts) != 2 {
+				return repo.FieldQuery{}, false
+			}
+			return repo.FieldQuery{
+				Name:  parts[0],
+				Value: parts[1],
+			}, true
+		})
+	}
+
+	v := repo.EntityQuery{
+		Page:             queryIntOrNegativeOne(params.Get("page")),
+		PageSize:         queryIntOrNegativeOne(params.Get("pageSize")),
+		Search:           params.Get("q"),
+		ParentIDs:        queryUUIDList(params, "parentIds"),
+		TagIDs:           queryUUIDList(params, "tags"),
+		NegateTags:       queryBool(params.Get("negateTags")),
+		OnlyWithoutPhoto: queryBool(params.Get("onlyWithoutPhoto")),
+		OnlyWithPhoto:    queryBool(params.Get("onlyWithPhoto")),
+		IncludeArchived:  queryBool(params.Get("includeArchived")),
+		Fields:           filterFieldItems(params["fields"]),
+		OrderBy:          params.Get("orderBy"),
+	}
+
+	// Parse isLocation filter: "true" = locations only, "false" = items only, absent = default (items only)
+	if isLocStr := params.Get("isLocation"); isLocStr != "" {
+		isLoc := queryBool(isLocStr)
+		v.IsLocation = &isLoc
+	}
+
+	v.FilterChildren = queryBool(params.Get("filterChildren"))
+
+	if strings.HasPrefix(v.Search, "#") {
+		aidStr := strings.TrimPrefix(v.Search, "#")
+
+		aid, ok := repo.ParseAssetID(aidStr)
+		if ok {
+			v.Search = ""
+			v.AssetID = aid
+		}
+	}
+
+	return v
+}
+
 // HandleEntitiesGetAll godoc
 //
 //	@Summary	Query All Entities
@@ -57,59 +108,8 @@ func startEntityCtrlSpan(ctx context.Context, name string, attrs ...attribute.Ke
 //	@Router		/v1/entities [GET]
 //	@Security	Bearer
 func (ctrl *V1Controller) HandleEntitiesGetAll() errchain.HandlerFunc {
-	extractQuery := func(r *http.Request) repo.EntityQuery {
-		params := r.URL.Query()
-
-		filterFieldItems := func(raw []string) []repo.FieldQuery {
-			return lo.FilterMap(raw, func(v string, _ int) (repo.FieldQuery, bool) {
-				parts := strings.SplitN(v, "=", 2)
-				if len(parts) != 2 {
-					return repo.FieldQuery{}, false
-				}
-				return repo.FieldQuery{
-					Name:  parts[0],
-					Value: parts[1],
-				}, true
-			})
-		}
-
-		v := repo.EntityQuery{
-			Page:             queryIntOrNegativeOne(params.Get("page")),
-			PageSize:         queryIntOrNegativeOne(params.Get("pageSize")),
-			Search:           params.Get("q"),
-			ParentIDs:        queryUUIDList(params, "parentIds"),
-			TagIDs:           queryUUIDList(params, "tags"),
-			NegateTags:       queryBool(params.Get("negateTags")),
-			OnlyWithoutPhoto: queryBool(params.Get("onlyWithoutPhoto")),
-			OnlyWithPhoto:    queryBool(params.Get("onlyWithPhoto")),
-			IncludeArchived:  queryBool(params.Get("includeArchived")),
-			Fields:           filterFieldItems(params["fields"]),
-			OrderBy:          params.Get("orderBy"),
-		}
-
-		// Parse isLocation filter: "true" = locations only, "false" = items only, absent = default (items only)
-		if isLocStr := params.Get("isLocation"); isLocStr != "" {
-			isLoc := queryBool(isLocStr)
-			v.IsLocation = &isLoc
-		}
-
-		v.FilterChildren = queryBool(params.Get("filterChildren"))
-
-		if strings.HasPrefix(v.Search, "#") {
-			aidStr := strings.TrimPrefix(v.Search, "#")
-
-			aid, ok := repo.ParseAssetID(aidStr)
-			if ok {
-				v.Search = ""
-				v.AssetID = aid
-			}
-		}
-
-		return v
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) error {
-		query := extractQuery(r)
+		query := extractEntityQuery(r)
 		spanCtx, span := startEntityCtrlSpan(r.Context(), "controller.V1.HandleEntitiesGetAll",
 			attribute.String("query.search", query.Search),
 			attribute.Int("query.page", query.Page),
@@ -546,6 +546,17 @@ func (ctrl *V1Controller) HandleLocationTreeQuery() errchain.HandlerFunc {
 // HandleEntitiesExport godoc
 //
 //	@Summary	Export Entities
+//	@Produce	text/csv
+//	@Description Without filtered=true, exports the full collection including locations and archived records. Filtered mode uses inventory listing filters, excludes locations, and ignores pagination and ordering parameters.
+//	@Param filtered query bool false "export matching inventory items only"
+//	@Param q query string false "search text or #asset-ID (filtered mode)"
+//	@Param parentIds query []string false "direct parent IDs (filtered mode)" collectionFormat(multi)
+//	@Param tags query []string false "tag IDs including descendants (filtered mode)" collectionFormat(multi)
+//	@Param negateTags query bool false "exclude selected tags (filtered mode)"
+//	@Param includeArchived query bool false "include archived items (filtered mode; default false)"
+//	@Param onlyWithPhoto query bool false "require primary photo (filtered mode)"
+//	@Param onlyWithoutPhoto query bool false "require no primary photo (filtered mode)"
+//	@Param fields query []string false "name=value custom-field filters, OR combined (filtered mode)" collectionFormat(multi)
 //	@Tags		Entities
 //	@Success	200	{string}	string	"text/csv"
 //	@Router		/v1/entities/export [GET]
@@ -558,7 +569,14 @@ func (ctrl *V1Controller) HandleEntitiesExport() errchain.HandlerFunc {
 		ctx := services.NewContext(spanCtx)
 		span.SetAttributes(attribute.String("group.id", ctx.GID.String()))
 
-		csvData, err := ctrl.svc.Entities.ExportCSV(spanCtx, ctx.GID, GetHBURL(r, &ctrl.config.Options, ctrl.url))
+		var csvData [][]string
+		var err error
+		hbURL := GetHBURL(r, &ctrl.config.Options, ctrl.url)
+		if queryBool(r.URL.Query().Get("filtered")) {
+			csvData, err = ctrl.svc.Entities.ExportFilteredCSV(spanCtx, ctx.GID, extractEntityQuery(r), hbURL)
+		} else {
+			csvData, err = ctrl.svc.Entities.ExportCSV(spanCtx, ctx.GID, hbURL)
+		}
 		if err != nil {
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to export entities")

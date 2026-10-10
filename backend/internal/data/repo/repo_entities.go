@@ -593,12 +593,8 @@ func entityQuerySpanAttrs(gid uuid.UUID, q EntityQuery) []attribute.KeyValue {
 	}
 }
 
-// QueryByGroup returns a list of entities that belong to a specific group based on the provided query.
-func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q EntityQuery) (PaginationResult[EntitySummary], error) {
-	ctx, span := entityTracer().Start(ctx, "repo.EntityRepository.QueryByGroup",
-		trace.WithAttributes(entityQuerySpanAttrs(gid, q)...))
-	defer span.End()
-
+// queryByGroup shares inventory filter semantics between listing and export.
+func (r *EntityRepository) queryByGroup(ctx context.Context, gid uuid.UUID, q EntityQuery) *ent.EntityQuery {
 	qb := r.db.Entity.Query().Where(
 		entity.HasGroupWith(group.ID(gid)),
 	)
@@ -730,7 +726,16 @@ func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q En
 		qb = qb.Where(entity.And(andPredicates...))
 	}
 
-	span.SetAttributes(attribute.Int("query.predicates.and.count", len(andPredicates)))
+	return qb
+}
+
+// QueryByGroup returns a list of entities that belong to a specific group based on the provided query.
+func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q EntityQuery) (PaginationResult[EntitySummary], error) {
+	ctx, span := entityTracer().Start(ctx, "repo.EntityRepository.QueryByGroup",
+		trace.WithAttributes(entityQuerySpanAttrs(gid, q)...))
+	defer span.End()
+
+	qb := r.queryByGroup(ctx, gid, q)
 
 	countCtx, countSpan := entityTracer().Start(ctx, "repo.EntityRepository.QueryByGroup.count")
 	count, err := qb.Count(countCtx)
@@ -915,6 +920,28 @@ func (r *EntityRepository) QueryByAssetID(ctx context.Context, gid uuid.UUID, as
 		Total:    len(entities),
 		Items:    entities,
 	}, nil
+}
+
+// GetExportParents loads only metadata for omitted parents in the same collection.
+// These records are never added to the CSV's output rows.
+func (r *EntityRepository) GetExportParents(ctx context.Context, gid uuid.UUID, ids []uuid.UUID) ([]EntityOut, error) {
+	return mapEntitiesOutErr(r.db.Entity.Query().
+		Where(entity.HasGroupWith(group.ID(gid)), entity.IDIn(ids...)).
+		WithParent(func(pq *ent.EntityQuery) { pq.Where(entity.HasGroupWith(group.ID(gid))) }).
+		WithEntityType(func(tq *ent.EntityTypeQuery) { tq.Where(entitytype.HasGroupWith(group.ID(gid))) }).All(ctx))
+}
+
+// GetFilteredExport returns every matching inventory item, ignoring pagination and
+// location/sort overrides. Related data is loaded in batches rather than per item.
+func (r *EntityRepository) GetFilteredExport(ctx context.Context, gid uuid.UUID, q EntityQuery) ([]EntityOut, error) {
+	q.IsLocation = nil
+	return mapEntitiesOutErr(r.queryByGroup(ctx, gid, q).
+		Order(ent.Asc(entity.FieldName), ent.Asc(entity.FieldID)).
+		WithTag(func(tq *ent.TagQuery) { tq.Where(tag.HasGroupWith(group.ID(gid))) }).
+		WithParent(func(pq *ent.EntityQuery) { pq.Where(entity.HasGroupWith(group.ID(gid))) }).
+		WithEntityType(func(tq *ent.EntityTypeQuery) { tq.Where(entitytype.HasGroupWith(group.ID(gid))) }).
+		WithFields().
+		All(ctx))
 }
 
 // GetAll returns all the entities in the database with the Tags, Parent, and EntityType eager loaded.
@@ -2708,6 +2735,7 @@ func (r *EntityRepository) PathForEntity(ctx context.Context, gid, entityID uuid
 		SELECT e.id, e.name, e.entity_children
 		FROM entities e
 		JOIN entity_path ep ON e.id = ep.entity_children
+		WHERE e.group_entities = $2
 	  )
 
 	  SELECT id, name

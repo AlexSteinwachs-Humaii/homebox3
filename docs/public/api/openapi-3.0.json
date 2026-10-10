@@ -348,15 +348,102 @@
                         "Bearer": []
                     }
                 ],
+                "description": "Without filtered=true, exports the full collection including locations and archived records. Filtered mode uses inventory listing filters, excludes locations, and ignores pagination and ordering parameters.",
                 "tags": [
                     "Entities"
                 ],
                 "summary": "Export Entities",
+                "parameters": [
+                    {
+                        "description": "export matching inventory items only",
+                        "name": "filtered",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "search text or #asset-ID (filtered mode)",
+                        "name": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "direct parent IDs (filtered mode)",
+                        "name": "parentIds",
+                        "in": "query",
+                        "explode": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "description": "tag IDs including descendants (filtered mode)",
+                        "name": "tags",
+                        "in": "query",
+                        "explode": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "description": "exclude selected tags (filtered mode)",
+                        "name": "negateTags",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "include archived items (filtered mode; default false)",
+                        "name": "includeArchived",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "require primary photo (filtered mode)",
+                        "name": "onlyWithPhoto",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "require no primary photo (filtered mode)",
+                        "name": "onlyWithoutPhoto",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "name=value custom-field filters, OR combined (filtered mode)",
+                        "name": "fields",
+                        "in": "query",
+                        "explode": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "text/csv",
                         "content": {
-                            "*/*": {
+                            "text/csv": {
                                 "schema": {
                                     "type": "string"
                                 }

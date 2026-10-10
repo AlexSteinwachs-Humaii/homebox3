@@ -2909,6 +2909,57 @@ paths:
       - Entities
   /v1/entities/export:
     get:
+      description: Without filtered=true, exports the full collection including locations
+        and archived records. Filtered mode uses inventory listing filters, excludes
+        locations, and ignores pagination and ordering parameters.
+      parameters:
+      - description: export matching inventory items only
+        in: query
+        name: filtered
+        type: boolean
+      - description: 'search text or #asset-ID (filtered mode)'
+        in: query
+        name: q
+        type: string
+      - collectionFormat: multi
+        description: direct parent IDs (filtered mode)
+        in: query
+        items:
+          type: string
+        name: parentIds
+        type: array
+      - collectionFormat: multi
+        description: tag IDs including descendants (filtered mode)
+        in: query
+        items:
+          type: string
+        name: tags
+        type: array
+      - description: exclude selected tags (filtered mode)
+        in: query
+        name: negateTags
+        type: boolean
+      - description: include archived items (filtered mode; default false)
+        in: query
+        name: includeArchived
+        type: boolean
+      - description: require primary photo (filtered mode)
+        in: query
+        name: onlyWithPhoto
+        type: boolean
+      - description: require no primary photo (filtered mode)
+        in: query
+        name: onlyWithoutPhoto
+        type: boolean
+      - collectionFormat: multi
+        description: name=value custom-field filters, OR combined (filtered mode)
+        in: query
+        items:
+          type: string
+        name: fields
+        type: array
+      produces:
+      - text/csv
       responses:
         "200":
           description: text/csv

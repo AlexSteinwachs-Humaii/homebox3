@@ -497,6 +497,11 @@
         "entity_type": "Entity Type"
     },
     "home": {
+        "export_csv": "Export CSV",
+        "export_description": "Choose filters for all matching inventory items in this collection, across all pages. Locations are not exported. These filters do not change your dashboard or Items search.",
+        "export_reset": "Reset filters",
+        "export_options_error": "Could not load filter options for this collection.",
+        "export_retry_options": "Reload options",
         "quick_statistics": "Quick Statistics",
         "recently_added": "Recently Added",
         "storage_locations": "Storage Locations",

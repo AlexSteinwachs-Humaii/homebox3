@@ -334,10 +334,82 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
+                "description": "Without filtered=true, exports the full collection including locations and archived records. Filtered mode uses inventory listing filters, excludes locations, and ignores pagination and ordering parameters.",
+                "produces": [
+                    "text/csv"
+                ],
                 "tags": [
                     "Entities"
                 ],
                 "summary": "Export Entities",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "export matching inventory items only",
+                        "name": "filtered",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "search text or #asset-ID (filtered mode)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "direct parent IDs (filtered mode)",
+                        "name": "parentIds",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "tag IDs including descendants (filtered mode)",
+                        "name": "tags",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "exclude selected tags (filtered mode)",
+                        "name": "negateTags",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "include archived items (filtered mode; default false)",
+                        "name": "includeArchived",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "require primary photo (filtered mode)",
+                        "name": "onlyWithPhoto",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "require no primary photo (filtered mode)",
+                        "name": "onlyWithoutPhoto",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "name=value custom-field filters, OR combined (filtered mode)",
+                        "name": "fields",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "text/csv",

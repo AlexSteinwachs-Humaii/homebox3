@@ -17,20 +17,43 @@ const totals = {
   totalWithWarranty: 0,
 };
 
-async function mockHome(page: Page, options: { name?: string; user?: string } = {}) {
+async function mockHome(
+  page: Page,
+  options: { name?: string; user?: string; items?: unknown[]; inventoryPreferences?: boolean } = {}
+) {
   const name = options.name ?? "Workshop";
   const user = options.user ?? "Morgan";
   await page.context().addCookies([{ name: "hb.auth.session", value: "true", url: test.info().project.use.baseURL! }]);
-  await page.addInitScript(id => {
-    localStorage.setItem(
-      "homebox/preferences/location",
-      JSON.stringify({ collectionId: id, language: "en", overrideFormatLocale: "de-DE" })
-    );
-  }, collectionId);
+  await page.addInitScript(
+    ({ id, inventoryPreferences }) => {
+      localStorage.setItem(
+        "homebox/preferences/location",
+        JSON.stringify({
+          collectionId: id,
+          language: "en",
+          overrideFormatLocale: "de-DE",
+          ...(inventoryPreferences
+            ? {
+                itemDisplayView: "table",
+                itemsPerTablePage: 1,
+                tableHeaders: [
+                  { value: "archived", enabled: true },
+                  { value: "name", enabled: true },
+                  { value: "quantity", enabled: false },
+                ],
+              }
+            : {}),
+        })
+      );
+    },
+    { id: collectionId, inventoryPreferences: options.inventoryPreferences }
+  );
   await page.route("**/api/v1/**", async route => {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
-    if (path === "/api/v1/users/self")
+    if (path === "/api/v1/entities" && new URL(route.request().url()).searchParams.get("isLocation") === "true")
+      body = { items: [] };
+    else if (path === "/api/v1/users/self")
       body = {
         item: {
           id: "overview-user",
@@ -45,7 +68,8 @@ async function mockHome(page: Page, options: { name?: string; user?: string } = 
     else if (path === "/api/v1/groups/all") body = [{ id: collectionId, name }];
     else if (path === "/api/v1/groups") body = { id: collectionId, name, currency: "EUR" };
     else if (path === "/api/v1/groups/statistics") body = totals;
-    else if (path === "/api/v1/items") body = { items: [], total: 0, page: 1, pageSize: 5 };
+    else if (path === "/api/v1/entities")
+      body = { items: options.items ?? [], total: options.items?.length ?? 0, page: 1, pageSize: 5 };
     else if (path === "/api/v1/status")
       body = {
         health: true,
@@ -130,4 +154,108 @@ test("malformed successful statistics are treated as unavailable", async ({ page
   await page.goto("/home");
   await expect(statsSection(page).getByRole("alert")).toBeVisible();
   await expect(statsSection(page).locator(".home-statistic")).toHaveCount(0);
+});
+
+const recentItems = Array.from({ length: 5 }, (_, index) => ({
+  id: `recent-${index}`,
+  assetId: `000-00${index + 1}`,
+  name: index === 0 ? "Cordless drill" : `Recent item ${index}`,
+  quantity: index + 1,
+  insured: index % 2 === 0,
+  archived: index % 2 !== 0,
+  purchasePrice: 129.5 + index,
+  description: "",
+  tags: [],
+  itemCount: 0,
+  createdAt: "2026-10-10T10:00:00Z",
+  updatedAt: "2026-10-10T10:00:00Z",
+  parent: index === 0 ? { id: "garage", name: "Garage" } : null,
+}));
+const recentSection = (page: Page) => page.getByRole("region", { name: "Recently Added" });
+
+test("Home fixes all seven columns, retains real data and does not mutate inventory preferences", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockHome(page, { items: recentItems, inventoryPreferences: true });
+  const recentRequest = page.waitForRequest(
+    request =>
+      new URL(request.url()).pathname === "/api/v1/entities" &&
+      new URL(request.url()).searchParams.get("orderBy") === "createdAt"
+  );
+  await page.goto("/home");
+  const query = new URL((await recentRequest).url()).searchParams;
+  expect(query.get("orderBy")).toBe("createdAt");
+  expect(query.get("pageSize")).toBe("5");
+  const section = recentSection(page);
+  await expect(section.getByRole("columnheader")).toHaveText([
+    "Asset ID",
+    "Name",
+    "Quantity",
+    "Insured",
+    "Purchase Price",
+    "Location",
+    "Archived",
+  ]);
+  await expect(section.locator("tbody tr")).toHaveCount(5);
+  const row = section.locator("tbody tr").first();
+  await expect(row.getByRole("cell")).toHaveText([
+    "000-001",
+    "Cordless drill",
+    "1",
+    "Yes",
+    /129,50\s*€/,
+    "Garage",
+    "No",
+  ]);
+  await expect(section.locator("tbody tr").nth(1).getByRole("cell").nth(3)).toHaveText("No");
+  await expect(section.locator("tbody tr").nth(1).getByRole("cell").nth(6)).toHaveText("Yes");
+  const readPreferences = () => page.evaluate(() => JSON.parse(localStorage.getItem("homebox/preferences/location")!));
+  const before = await readPreferences();
+  expect(before.itemsPerTablePage).toBe(1);
+  expect(before.tableHeaders).toEqual([
+    { value: "archived", enabled: true },
+    { value: "name", enabled: true },
+    { value: "quantity", enabled: false },
+  ]);
+  await expect(section.locator("tbody tr").nth(1).getByRole("cell").nth(5)).toHaveText("");
+  await page.screenshot({ path: "test-results/home-recent-populated.png" });
+  const item = row.getByRole("link", { name: "Cordless drill", exact: true });
+  await expect(item).toHaveAttribute("href", "/item/recent-0");
+  await item.focus();
+  await item.press("Enter");
+  await expect(page).toHaveURL(/\/item\/recent-0$/);
+  await page.goto("/home");
+  const location = recentSection(page).getByRole("link", { name: "Garage", exact: true });
+  await location.focus();
+  await location.press("Enter");
+  await expect(page).toHaveURL(/\/location\/garage$/);
+  await page.goto("/home");
+  await recentSection(page).getByRole("link", { name: "Search inventory" }).click();
+  await expect(page).toHaveURL(/\/items$/);
+  // The full inventory table still honors its saved column order and visibility.
+  await expect(page.getByRole("columnheader").filter({ hasText: /Archived|Name|Quantity/ })).toHaveText([
+    "Archived",
+    "Name",
+  ]);
+  const after = await readPreferences();
+  expect(after.tableHeaders).toEqual(before.tableHeaders);
+  expect(after.itemsPerTablePage).toBe(1);
+});
+
+test("recent inventory remains contained with long labels and mobile item cards", async ({ page }) => {
+  const name = "Long inventory name ".repeat(30);
+  await mockHome(page, { items: [{ ...recentItems[0], name, parent: { id: "garage", name: "G".repeat(100) } }] });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/home");
+  await expect(recentSection(page).getByRole("table")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/home-recent-desktop.png" });
+  await recentSection(page).getByRole("link", { name, exact: true }).click();
+  await expect(page).toHaveURL(/\/item\/recent-0$/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/home");
+  await expect(recentSection(page).getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(recentSection(page).getByRole("table")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await recentSection(page).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/home-recent-mobile.png" });
 });

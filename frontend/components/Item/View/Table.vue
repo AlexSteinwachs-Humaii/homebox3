@@ -5,15 +5,16 @@
   import { makeColumns } from "./table/columns";
   import { useI18n } from "vue-i18n";
 
-  defineProps<{
+  const props = defineProps<{
     items: EntitySummary[];
+    home?: boolean;
   }>();
 
   const { t } = useI18n();
 
-  const columns = computed(() => makeColumns({ t }).filter(c => c.enableHiding !== false));
+  const columns = computed(() => makeColumns({ t, home: props.home }).filter(c => c.enableHiding !== false));
 </script>
 
 <template>
-  <DataTable view="table" :data="items" :columns="columns" disable-controls />
+  <DataTable view="table" :data="items" :columns="columns" disable-controls :home="home" />
 </template>

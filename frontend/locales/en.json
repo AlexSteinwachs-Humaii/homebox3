@@ -498,6 +498,7 @@
     },
     "home": {
         "quick_statistics": "Quick Statistics",
+        "search_inventory": "Search inventory",
         "recently_added": "Recently Added",
         "storage_locations": "Storage Locations",
         "tags": "Tags",

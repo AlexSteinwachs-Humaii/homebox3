@@ -18,16 +18,23 @@ export function makeColumns({
   t,
   refresh,
   disableSort,
+  home,
 }: {
   t: (key: string) => string;
   refresh?: () => void;
   disableSort?: boolean;
+  home?: boolean;
 }): ColumnDef<EntitySummary>[] {
   const sortable = (column: Column<EntitySummary, unknown>, key: string) => {
     const sortState = column.getIsSorted(); // 'asc' | 'desc' | false
     if (!sortState) {
       // show the neutral up/down icon when not sorted
-      return [t(key), h(ArrowUpDown, { class: cn(["ml-2 h-4 w-4 opacity-40", disableSort && "opacity-0"]) })];
+      return [
+        t(key),
+        h(ArrowUpDown, {
+          class: cn(["ml-2 h-4 w-4 opacity-40", disableSort && "opacity-0"]),
+        }),
+      ];
     }
     // show a single arrow that points up for asc (rotate-180) and down for desc
     return [
@@ -42,7 +49,7 @@ export function makeColumns({
     ];
   };
 
-  return [
+  const columns: ColumnDef<EntitySummary>[] = [
     {
       id: "select",
       header: ({ table }) =>
@@ -155,7 +162,7 @@ export function makeColumns({
         ),
       cell: ({ row }) => {
         const item = row.original as EntitySummary;
-        const loc = (item.location || item.parent) as { id: string; name: string } | null;
+        const loc = (item as EntitySummary & { location?: EntitySummary | null }).location || item.parent;
         if (loc) {
           return h("a", { href: `/location/${loc.id}`, class: "hover:underline text-sm" }, loc.name);
         }
@@ -199,7 +206,10 @@ export function makeColumns({
         h(
           "div",
           { class: "text-center text-sm" },
-          h(DateTime, { date: row.getValue("createdAt") as Date, datetimeType: "date" })
+          h(DateTime, {
+            date: row.getValue("createdAt") as Date,
+            datetimeType: "date",
+          })
         ),
     },
     {
@@ -218,7 +228,10 @@ export function makeColumns({
         h(
           "div",
           { class: "text-center text-sm" },
-          h(DateTime, { date: row.getValue("updatedAt") as Date, datetimeType: "date" })
+          h(DateTime, {
+            date: row.getValue("updatedAt") as Date,
+            datetimeType: "date",
+          })
         ),
     },
     {
@@ -281,4 +294,20 @@ export function makeColumns({
       },
     },
   ];
+
+  if (!home) return columns;
+
+  // Home is a read-only recent-items preview, not another saved inventory view.
+  const order = ["assetId", "name", "quantity", "insured", "purchasePrice", "location", "archived"];
+  return order.map(id => {
+    const column = columns.find(c => c.id === id)!;
+    const key = id === "assetId" ? "asset_id" : id === "purchasePrice" ? "purchase_price" : id;
+    const result: ColumnDef<EntitySummary> = { ...column };
+    result.enableSorting = false;
+    result.header = () => t(`items.${key}`);
+    if (id === "insured" || id === "archived") {
+      result.cell = ({ row }) => h("span", {}, t(row.getValue(id) ? "global.yes" : "global.no"));
+    }
+    return result;
+  });
 }

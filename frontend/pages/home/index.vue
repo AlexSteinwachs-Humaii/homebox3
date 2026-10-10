@@ -5,7 +5,6 @@
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
   import BaseContainer from "@/components/Base/Container.vue";
-  import BaseCard from "@/components/Base/Card.vue";
   import Subtitle from "~/components/global/Subtitle.vue";
   import StatCard from "~/components/global/StatCard/StatCard.vue";
   import ItemCard from "~/components/Item/Card.vue";
@@ -117,15 +116,20 @@
         </div>
       </section>
 
-      <section>
-        <Subtitle> {{ $t("home.recently_added") }} </Subtitle>
+      <section class="home-section min-w-0" aria-labelledby="home-recent-title">
+        <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="home-recent-title" class="home-section-title">
+            {{ $t("home.recently_added") }}
+          </h2>
+          <NuxtLink to="/items" class="home-text-action">
+            {{ $t("home.search_inventory") }} <span aria-hidden="true">→</span>
+          </NuxtLink>
+        </div>
 
         <p v-if="itemTable.items.length === 0" class="ml-2 text-sm">
           {{ $t("items.no_results") }}
         </p>
-        <BaseCard v-else-if="breakpoints.lg">
-          <Table :items="itemTable.items" />
-        </BaseCard>
+        <Table v-else-if="breakpoints.lg" :items="itemTable.items" home />
         <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <ItemCard v-for="item in itemTable.items" :key="item.id" :item="item" />
         </div>
@@ -155,6 +159,18 @@
 </template>
 
 <style scoped>
+  .home-text-action {
+    color: var(--home-purple);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+  .home-text-action:hover {
+    text-decoration: underline;
+  }
+  .home-text-action:focus-visible {
+    outline: 2px solid var(--home-purple);
+    outline-offset: 4px;
+  }
   [data-home-welcome] {
     border-color: var(--home-purple);
     color: var(--home-purple);

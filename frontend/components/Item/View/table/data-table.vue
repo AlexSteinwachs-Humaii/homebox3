@@ -31,6 +31,7 @@
     columns: ColumnDef<EntitySummary, TValue>[];
     data: EntitySummary[];
     disableControls?: boolean;
+    home?: boolean;
     view: "table" | "card";
     locationFlatTree?: FlatTreeItem[];
     externalPagination?: Pagination;
@@ -41,8 +42,8 @@
   }>();
 
   const preferences = useViewPreferences();
-  const defaultPageSize = preferences.value.itemsPerTablePage;
-  const tableHeadersData = preferences.value.tableHeaders;
+  const defaultPageSize = props.home ? Math.max(props.data.length, 5) : preferences.value.itemsPerTablePage;
+  const tableHeadersData = props.home ? undefined : preferences.value.tableHeaders;
   const defaultVisible = ["name", "quantity", "insured", "purchasePrice"];
 
   const tableHeaders = computed(
@@ -52,7 +53,7 @@
         .filter(c => c.enableHiding !== false)
         .map(c => ({
           value: c.id!,
-          enabled: defaultVisible.includes(c.id ?? ""),
+          enabled: props.home || defaultVisible.includes(c.id ?? ""),
         }))
   );
 
@@ -75,7 +76,7 @@
   watch(
     () => pagination.value.pageSize,
     newSize => {
-      preferences.value.itemsPerTablePage = newSize;
+      if (!props.home) preferences.value.itemsPerTablePage = newSize;
     }
   );
 
@@ -124,6 +125,7 @@
   });
 
   const persistHeaders = () => {
+    if (props.home) return;
     const headers = table
       .getAllColumns()
       .filter(column => column.getCanHide())
@@ -172,7 +174,7 @@
 
 <template>
   <div>
-    <Dialog :dialog-id="DialogID.ItemTableSettings">
+    <Dialog v-if="!home" :dialog-id="DialogID.ItemTableSettings">
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{{ $t("components.item.view.table.table_settings") }}</DialogTitle>
@@ -204,13 +206,17 @@
                   :model-value="table.getColumn(colId)?.getIsVisible()"
                   @update:model-value="toggleHeader(colId)"
                 />
-                <label class="text-sm" :for="colId"> {{ $t(`items.${camelToSnakeCase(colId)}`) }} </label>
+                <label class="text-sm" :for="colId">
+                  {{ $t(`items.${camelToSnakeCase(colId)}`) }}
+                </label>
               </div>
             </div>
           </div>
 
           <div class="flex flex-col gap-2">
-            <Label> {{ $t("components.item.view.table.rows_per_page") }} </Label>
+            <Label>
+              {{ $t("components.item.view.table.rows_per_page") }}
+            </Label>
             <Select :model-value="pagination.pageSize" @update:model-value="val => table.setPageSize(Number(val))">
               <SelectTrigger>
                 <SelectValue />
@@ -225,13 +231,15 @@
           </div>
 
           <div class="flex flex-col gap-2">
-            <Label class="text-sm"> {{ $t("components.item.view.table.quick_actions") }} </Label>
+            <Label class="text-sm">
+              {{ $t("components.item.view.table.quick_actions") }}
+            </Label>
             <Switch v-model="preferences.quickActions.enabled" />
           </div>
         </div>
       </DialogContent>
     </Dialog>
-    <BaseCard v-if="props.view === 'table'">
+    <BaseCard v-if="props.view === 'table'" :class="home ? 'home-surface home-recent-table' : undefined">
       <div v-if="!props.disableControls" class="border-b p-3">
         <DataTableControls
           :table="table"
@@ -241,7 +249,7 @@
         />
       </div>
       <div>
-        <TableView :table="table" :columns="columns" />
+        <TableView :table="table" :columns="columns" :home="home" />
       </div>
       <div v-if="!props.disableControls" class="border-t p-3">
         <DataTableControls
@@ -273,3 +281,18 @@
     </div>
   </div>
 </template>
+
+<style scoped>
+  .home-recent-table :deep(td) {
+    border-bottom: 1px solid var(--home-border);
+    overflow-wrap: anywhere;
+  }
+  .home-recent-table :deep(td > a),
+  .home-recent-table :deep(td > div) {
+    padding: 0.75rem 1rem;
+  }
+  .home-recent-table :deep(a:focus-visible) {
+    outline: 2px solid var(--home-purple);
+    outline-offset: -2px;
+  }
+</style>

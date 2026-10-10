@@ -7,7 +7,18 @@
   defineProps<{
     table: TableType<EntitySummary>;
     columns: ColumnDef<EntitySummary, TValue>[];
+    home?: boolean;
   }>();
+
+  const homeWidths: Record<string, string> = {
+    assetId: "11%",
+    name: "24%",
+    quantity: "10%",
+    insured: "10%",
+    purchasePrice: "15%",
+    location: "20%",
+    archived: "10%",
+  };
 
   const ariaSort = (column: Column<EntitySummary, unknown>) => {
     const s = column.getIsSorted();
@@ -18,16 +29,19 @@
 </script>
 
 <template>
-  <Table class="w-full">
+  <Table class="w-full" :class="home ? 'home-recent-grid' : undefined">
     <TableHeader>
       <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
         <TableHead
           v-for="header in headerGroup.headers"
           :key="header.id"
           :class="[
-            'text-no-transform cursor-pointer bg-secondary text-sm text-secondary-foreground hover:bg-secondary/90',
+            home
+              ? 'home-recent-header'
+              : 'text-no-transform cursor-pointer bg-secondary text-sm text-secondary-foreground hover:bg-secondary/90',
             header.column.id === 'select' || header.column.id === 'actions' ? 'w-10 px-3 text-center' : '',
           ]"
+          :style="home ? { width: homeWidths[header.column.id] } : undefined"
           :aria-sort="ariaSort(header.column)"
         >
           <FlexRender
@@ -73,3 +87,19 @@
     </TableBody>
   </Table>
 </template>
+
+<style scoped>
+  .home-recent-header {
+    background: var(--home-page);
+    color: var(--home-muted);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid var(--home-border);
+  }
+  .home-recent-grid {
+    table-layout: fixed;
+  }
+</style>

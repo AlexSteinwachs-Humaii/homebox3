@@ -523,7 +523,10 @@
         "tags_helper": "Ways to organize",
         "statistics_loading": "Loading collection statistics…",
         "statistics_error": "Collection statistics could not be loaded. Your inventory totals are unavailable.",
-        "retry_statistics": "Retry statistics"
+        "retry_statistics": "Retry statistics",
+        "section_loading": "Loading {section}…",
+        "section_error": "{section} could not be loaded. Please try again.",
+        "retry_section": "Retry {section}"
     },
     "index": {
         "back_to_login": "Back to login",

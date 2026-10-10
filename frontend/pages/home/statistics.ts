@@ -1,4 +1,5 @@
 import { computed } from "vue";
+import { createRequestScope } from "~~/lib/data/request-scope";
 import { useI18n } from "vue-i18n";
 import type { UserClient } from "~~/lib/api/user";
 
@@ -6,11 +7,15 @@ export function statCardData(api: UserClient) {
   const { t } = useI18n();
   // The existing collection selector reloads the page: the API client and this
   // cache key both belong to the tenant captured at setup, not a later selection.
-  const collectionId = useViewPreferences().value.collectionId ?? "default";
+  const prefs = useViewPreferences();
+  const collectionId = prefs.value.collectionId ?? "default";
+  const scope = createRequestScope(prefs.value.collectionId, () => prefs.value.collectionId);
   const { data, status, error, refresh } = useAsyncData(
     `home-statistics:${collectionId}`,
     async () => {
+      const isCurrent = scope.begin();
       const response = await api.stats.group();
+      if (!isCurrent()) throw new Error("Collection changed during request");
       if (response.error || !response.data) throw new Error("Unable to load collection statistics");
       // An empty/malformed response must not become a successful zero inventory.
       const totals = response.data;
@@ -22,7 +27,12 @@ export function statCardData(api: UserClient) {
     { deep: false }
   );
 
-  const statistics = computed(() => (status.value === "success" ? data.value : undefined));
+  for (const event of [ServerEvent.EntityMutation, ServerEvent.TagMutation]) {
+    onServerEvent(event, () => {
+      if (scope.matches()) void refresh();
+    });
+  }
+  const statistics = computed(() => (scope.matches() && status.value === "success" ? data.value : undefined));
   const cards = computed(() => {
     const totals = statistics.value;
     if (!totals) return [];
@@ -58,5 +68,11 @@ export function statCardData(api: UserClient) {
     ];
   });
 
-  return { statistics, cards, status: computed(() => status.value), error, refresh };
+  return {
+    statistics,
+    cards,
+    status: computed(() => status.value),
+    error,
+    refresh,
+  };
 }

@@ -9,6 +9,7 @@
   import ItemCard from "~/components/Item/Card.vue";
   import LocationCard from "~/components/Location/Card.vue";
   import TagChip from "~/components/Tag/Chip.vue";
+  import RequestState from "~/components/Home/RequestState.vue";
   import Table from "~/components/Item/View/Table.vue";
 
   const { t } = useI18n();
@@ -29,7 +30,23 @@
   const tagsStore = useTagStore();
   const tags = computed(() => tagsStore.tags);
 
-  const itemTable = itemsTable(api);
+  const { items: recentItems, status: recentStatus, refresh: refreshRecent } = itemsTable(api);
+  const prefs = useViewPreferences();
+  const boundCollection = prefs.value.collectionId ?? null;
+  const collectionMatches = computed(() => (prefs.value.collectionId ?? null) === boundCollection);
+  // Currency and API headers are page-lifetime values. Preserve the selector's
+  // reload contract even when collection context is established/changed elsewhere.
+  watch(
+    collectionMatches,
+    matches => {
+      if (!matches && import.meta.client) window.location.reload();
+    },
+    { flush: "post" }
+  );
+  onMounted(() => {
+    if (locationStore.parentsStatus === "idle") void locationStore.refreshParents();
+    if (tagsStore.status === "idle") void tagsStore.ensureAllTagsFetched();
+  });
   const { statistics, cards: stats, status: statsStatus, refresh: refreshStats } = statCardData(api);
   const { selectedCollection, load: loadCollections } = useCollections();
   // On mobile the closed sidebar does not mount its selector, so Home must
@@ -49,7 +66,7 @@
 
 <template>
   <div>
-    <BaseContainer class="flex flex-col gap-4">
+    <BaseContainer v-if="collectionMatches" class="flex flex-col gap-4">
       <section
         class="grid min-w-0 gap-6 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)]"
         aria-labelledby="home-overview-title"
@@ -115,7 +132,7 @@
         </div>
       </section>
 
-      <section class="home-section min-w-0" aria-labelledby="home-recent-title">
+      <section class="home-section min-w-0" aria-labelledby="home-recent-title" :aria-busy="recentStatus === 'pending'">
         <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="home-recent-title" class="home-section-title">
             {{ $t("home.recently_added") }}
@@ -125,16 +142,22 @@
           </NuxtLink>
         </div>
 
-        <p v-if="itemTable.items.length === 0" class="ml-2 text-sm">
-          {{ $t("items.no_results") }}
-        </p>
-        <Table v-else-if="breakpoints.lg" :items="itemTable.items" home />
-        <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <ItemCard v-for="item in itemTable.items" :key="item.id" :item="item" />
-        </div>
+        <RequestState :status="recentStatus" :section="$t('home.recently_added')" @retry="refreshRecent()">
+          <p v-if="recentItems.length === 0" class="ml-2 text-sm">
+            {{ $t("items.no_results") }}
+          </p>
+          <Table v-else-if="breakpoints.lg" :items="recentItems" home />
+          <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <ItemCard v-for="item in recentItems" :key="item.id" :item="item" />
+          </div>
+        </RequestState>
       </section>
 
-      <section class="home-section min-w-0" aria-labelledby="home-locations-title">
+      <section
+        class="home-section min-w-0"
+        aria-labelledby="home-locations-title"
+        :aria-busy="locationStore.parentsStatus === 'pending'"
+      >
         <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="home-locations-title" class="home-section-title">
             {{ $t("home.storage_locations") }}
@@ -143,15 +166,25 @@
             {{ $t("home.all_locations") }} <span aria-hidden="true">→</span>
           </NuxtLink>
         </div>
-        <p v-if="locations.length === 0" class="ml-2 text-sm">
-          {{ $t("locations.no_results") }}
-        </p>
-        <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-          <LocationCard v-for="location in locations" :key="location.id" :location="location" home />
-        </div>
+        <RequestState
+          :status="locationStore.parentsStatus"
+          :section="$t('home.storage_locations')"
+          @retry="locationStore.refreshParents()"
+        >
+          <p v-if="locations.length === 0" class="ml-2 text-sm">
+            {{ $t("locations.no_results") }}
+          </p>
+          <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <LocationCard v-for="location in locations" :key="location.id" :location="location" home />
+          </div>
+        </RequestState>
       </section>
 
-      <section class="home-section min-w-0" aria-labelledby="home-tags-title">
+      <section
+        class="home-section min-w-0"
+        aria-labelledby="home-tags-title"
+        :aria-busy="tagsStore.status === 'pending'"
+      >
         <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="home-tags-title" class="home-section-title">
             {{ $t("home.tags") }}
@@ -160,18 +193,30 @@
             {{ $t("home.all_tags") }} <span aria-hidden="true">→</span>
           </NuxtLink>
         </div>
-        <p v-if="tags.length === 0" class="ml-2 text-sm">
-          {{ $t("tags.no_results") }}
-        </p>
-        <div v-else class="flex min-w-0 flex-wrap gap-2">
-          <TagChip v-for="tag in tags" :key="tag.id" :tag="tag" home hide-icon />
-        </div>
+        <RequestState :status="tagsStore.status" :section="$t('home.tags')" @retry="tagsStore.refresh()">
+          <p v-if="tags.length === 0" class="ml-2 text-sm">
+            {{ $t("tags.no_results") }}
+          </p>
+          <div v-else class="flex min-w-0 flex-wrap gap-2">
+            <TagChip v-for="tag in tags" :key="tag.id" :tag="tag" home hide-icon />
+          </div>
+        </RequestState>
       </section>
     </BaseContainer>
   </div>
 </template>
 
 <style scoped>
+  /* The shared primitive has generous two-sided section padding. Home already
+     supplies a grid gap, so avoid doubling it between compact dashboard sections. */
+  .home-section {
+    padding-block: 0;
+    border-top: 0;
+  }
+  .home-section[aria-labelledby="home-stats-title"] {
+    border-top: 1px solid var(--home-border);
+    padding-top: 1.25rem;
+  }
   .home-text-action {
     color: var(--home-purple);
     font-size: 0.8125rem;

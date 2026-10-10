@@ -577,7 +577,7 @@
   entityTypeStore.ensureFetched();
 
   onMounted(() => {
-    locationStore.refreshParents();
+    locationStore.ensureParentsFetched();
     locationStore.refreshTree();
 
     // Auto-open JoinModal when invitation token is in URL

@@ -26,6 +26,7 @@ async function mockHome(
     locations?: unknown[];
     tags?: unknown[];
     inventoryPreferences?: boolean;
+    collections?: { id: string; name: string }[];
   } = {}
 ) {
   const name = options.name ?? "Workshop";
@@ -39,6 +40,7 @@ async function mockHome(
   ]);
   await page.addInitScript(
     ({ id, inventoryPreferences }) => {
+      if (localStorage.getItem("homebox/preferences/location")) return;
       localStorage.setItem(
         "homebox/preferences/location",
         JSON.stringify({
@@ -79,7 +81,7 @@ async function mockHome(
       };
     else if (path === "/api/v1/tags") body = options.tags ?? [];
     else if (path === "/api/v1/users/self/settings") body = { item: {} };
-    else if (path === "/api/v1/groups/all") body = [{ id: collectionId, name }];
+    else if (path === "/api/v1/groups/all") body = options.collections ?? [{ id: collectionId, name }];
     else if (path === "/api/v1/groups") body = { id: collectionId, name, currency: "EUR" };
     else if (path === "/api/v1/groups/statistics") body = totals;
     else if (path === "/api/v1/entities")
@@ -104,8 +106,9 @@ const statsSection = (page: Page) => page.getByRole("region", { name: "Quick Sta
 
 test("live overview, section order, editorial primitives and non-USD locale formatting", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await mockHome(page);
+  await mockHome(page, { items: recentItems, locations: liveLocations.slice(0, 3), tags: liveTags });
   await page.goto("/home");
+  await expect(recentSection(page).locator("tbody tr")).toHaveCount(5);
   await expect(page.locator(".home-eyebrow")).toHaveText("Workshop · Collection overview");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("A place for everything.");
   await expect(page.locator("[data-home-welcome]")).toContainText("Welcome home, Morgan.");
@@ -355,7 +358,7 @@ test("Home empty location and tag sets keep all-entry actions", async ({ page })
   await expect(tagsSection(page).getByRole("link", { name: "All tags" })).toBeVisible();
 });
 
-test("Home renders every location/tag and wraps long labels on desktop and mobile", async ({ page }) => {
+test("Home renders every location/tag and wraps long labels on desktop, tablet and mobile", async ({ page }) => {
   const longLabel = "LongUnbrokenInventoryLabel".repeat(10);
   const locations = Array.from({ length: 18 }, (_, i) => ({
     id: `many-place-${i}`,
@@ -367,7 +370,7 @@ test("Home renders every location/tag and wraps long labels on desktop and mobil
     name: `${longLabel}${i}`,
   }));
   await mockHome(page, { locations, tags });
-  for (const width of [1440, 390]) {
+  for (const width of [1440, 834, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/home");
     await expect(locationsSection(page).locator(".home-location-card")).toHaveCount(18);
@@ -382,4 +385,110 @@ test("Home renders every location/tag and wraps long labels on desktop and mobil
     .getByRole("link", { name: `${longLabel}21`, exact: true })
     .click();
   await expect(page).toHaveURL(/\/tag\/many-tag-21$/);
+});
+
+for (const section of ["Recently Added", "Storage Locations", "Tags"]) {
+  test(`${section} distinguishes pending, failure/retry and successful empty`, async ({ page }) => {
+    await mockHome(page);
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    let requests = 0;
+    await page.route("**/api/v1/**", async route => {
+      const url = new URL(route.request().url());
+      const matches =
+        section === "Tags"
+          ? url.pathname === "/api/v1/tags"
+          : section === "Storage Locations"
+            ? url.pathname === "/api/v1/entities" && url.searchParams.get("filterChildren") === "true"
+            : url.pathname === "/api/v1/entities" && url.searchParams.get("orderBy") === "createdAt";
+      if (!matches) return route.fallback();
+      expect(route.request().headers()["x-tenant"]).toBe(collectionId);
+      requests++;
+      if (requests === 1) {
+        await pending;
+        await route.fulfill({ status: 500, json: { error: "unavailable" } });
+      } else {
+        await route.fulfill({ json: section === "Tags" ? [] : { items: [] } });
+      }
+    });
+    await page.goto("/home");
+    const region = page.getByRole("region", { name: section, exact: true });
+    await expect(region.getByRole("status")).toHaveText(`Loading ${section}…`);
+    await expect(region).not.toContainText(/No (Items|Locations|Tags) Found/);
+    release();
+    await expect(region.getByRole("alert")).toContainText(`${section} could not be loaded`);
+    // A rerender does not automatically retry. Retry is keyboard-operable.
+    expect(requests).toBe(1);
+    const retry = region.getByRole("button", { name: `Retry ${section}`, exact: true });
+    await retry.focus();
+    await retry.press("Enter");
+    await expect(region.getByRole("alert")).toHaveCount(0);
+    await expect(region.getByRole("status")).toHaveCount(0);
+    await expect(region).toContainText(/No (Items|Locations|Tags) Found/);
+    expect(requests).toBe(2);
+  });
+}
+
+test("selector reload isolates every section, late responses and collection currency", async ({ page }) => {
+  const secondId = "second-collection";
+  await mockHome(page, {
+    collections: [
+      { id: collectionId, name: "Workshop" },
+      { id: secondId, name: "Studio" },
+    ],
+    locations: liveLocations,
+    tags: liveTags,
+  });
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  await page.route("**/api/v1/**", async route => {
+    const url = new URL(route.request().url());
+    const tenant = route.request().headers()["x-tenant"];
+    if (
+      tenant === collectionId &&
+      url.pathname === "/api/v1/entities" &&
+      url.searchParams.get("orderBy") === "createdAt"
+    ) {
+      await pending;
+      await route.fulfill({ json: { items: recentItems } }).catch(() => {}); // old document may be closed
+      return;
+    }
+    if (tenant !== secondId) return route.fallback();
+    if (url.pathname === "/api/v1/groups")
+      return route.fulfill({ json: { id: secondId, name: "Studio", currency: "JPY" } });
+    if (url.pathname === "/api/v1/groups/statistics")
+      return route.fulfill({
+        json: { ...totals, totalItemPrice: 9800, totalItems: 1, totalLocations: 1, totalTags: 1 },
+      });
+    if (url.pathname === "/api/v1/tags") return route.fulfill({ json: [{ ...liveTags[0], name: "Studio label" }] });
+    if (url.pathname === "/api/v1/entities")
+      return route.fulfill({
+        json: {
+          items:
+            url.searchParams.get("isLocation") === "true"
+              ? [{ ...liveLocations[0], name: "Studio shelf" }]
+              : [{ ...recentItems[0], name: "Studio camera", purchasePrice: 9800 }],
+        },
+      });
+    return route.fallback();
+  });
+  await page.goto("/home");
+  await expect(statsSection(page).locator(".home-statistic-value").first()).toHaveText(/1\.820,50\s*€/);
+  await expect(recentSection(page).getByRole("status")).toBeVisible();
+  await page.getByRole("combobox", { name: "Select Collection" }).click();
+  await page.getByRole("option", { name: "Studio", exact: true }).click();
+  await expect(page.locator(".home-eyebrow")).toHaveText("Studio · Collection overview");
+  release();
+  await expect(statsSection(page).locator(".home-statistic-value")).toHaveText([/9\.800,00\s*¥/, "1", "1", "1"]);
+  await expect(recentSection(page)).toContainText("Studio camera");
+  await expect(locationsSection(page)).toContainText("Studio shelf");
+  await expect(tagsSection(page)).toContainText("Studio label");
+  await expect(recentSection(page)).not.toContainText("Cordless drill");
+  await expect(locationsSection(page)).not.toContainText("Craft cupboard");
+  await expect(tagsSection(page)).not.toContainText("Handmade");
+  await expect(recentSection(page)).not.toContainText("€");
 });

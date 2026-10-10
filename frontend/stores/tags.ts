@@ -5,6 +5,9 @@ export const useTagStore = defineStore("tags", {
   state: () => ({
     allTags: null as TagOut[] | null,
     client: useUserApi(),
+    collectionId: useViewPreferences().value.collectionId ?? null,
+    status: "idle" as "idle" | "pending" | "success" | "error",
+    request: 0,
     refreshAllTagsPromise: null as Promise<void> | null,
   }),
   getters: {
@@ -14,7 +17,8 @@ export const useTagStore = defineStore("tags", {
      * response.
      */
     tags(state): TagOut[] {
-      return state.allTags ?? [];
+      // Keep shared pickers stable during refresh; Home gates rendering on status.
+      return (useViewPreferences().value.collectionId ?? null) === state.collectionId ? (state.allTags ?? []) : [];
     },
   },
   actions: {
@@ -24,21 +28,33 @@ export const useTagStore = defineStore("tags", {
       }
 
       if (this.refreshAllTagsPromise === null) {
-        this.refreshAllTagsPromise = this.refresh().then(() => {});
+        this.refreshAllTagsPromise = this.refresh()
+          .then(() => {})
+          .finally(() => {
+            this.refreshAllTagsPromise = null;
+          });
       }
       await this.refreshAllTagsPromise;
     },
     async refresh() {
-      const result = await this.client.tags.getAll();
-      if (result.error) {
+      const request = ++this.request;
+      this.status = "pending";
+      const isCurrent = () =>
+        request === this.request && (useViewPreferences().value.collectionId ?? null) === this.collectionId;
+      try {
+        const result = await this.client.tags.getAll();
+        if (isCurrent()) {
+          this.status = result.error || !Array.isArray(result.data) ? "error" : "success";
+          this.allTags = this.status === "success" ? result.data : null;
+        }
         return result;
+      } catch (error) {
+        if (isCurrent()) this.status = "error";
+        return { data: null, error, status: 0 };
       }
-
-      this.allTags = result.data;
-      return result;
     },
     getAncestors(tags: string[]) {
-      if (this.allTags === null) {
+      if (this.allTags === null || (useViewPreferences().value.collectionId ?? null) !== this.collectionId) {
         return [];
       }
 
@@ -67,7 +83,10 @@ export const useTagStore = defineStore("tags", {
       if (!tags) {
         return [];
       }
-      const ancestors = this.getAncestors(tags.map(t => t.id)).map(t => ({ ...t, ancestors: true }));
+      const ancestors = this.getAncestors(tags.map(t => t.id)).map(t => ({
+        ...t,
+        ancestors: true,
+      }));
 
       return [...tags.map(t => ({ ...t, ancestors: false })), ...ancestors].sort((a, b) =>
         a.name.localeCompare(b.name)

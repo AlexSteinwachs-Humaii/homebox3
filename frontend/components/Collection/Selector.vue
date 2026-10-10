@@ -104,7 +104,7 @@
   import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
   import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
   import { cn } from "~/lib/utils";
-  import { ref, computed, watch, onMounted } from "vue";
+  import { ref, computed, watch, onMounted, nextTick } from "vue";
   import { useSidebar } from "@/components/ui/sidebar/utils";
   import { useI18n } from "vue-i18n";
   import { DialogID } from "@/components/ui/dialog-provider/utils";
@@ -123,9 +123,11 @@
   const { collections, selectedCollection, load, set } = useCollections();
   const collectionsList = computed(() => collections.value);
 
-  function selectCollection(collection: CollectionSummary) {
+  async function selectCollection(collection: CollectionSummary) {
     if (selectedCollection.value?.id !== collection.id) {
       set(collection.id);
+      // Let the preference storage watcher persist the tenant before reloading.
+      await nextTick();
       window.location.reload();
     }
     open.value = false;

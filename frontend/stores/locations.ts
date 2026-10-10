@@ -7,6 +7,9 @@ export const useLocationStore = defineStore("locations", {
     parents: null as EntitySummary[] | null,
     Locations: null as EntitySummary[] | null,
     client: useUserApi(),
+    collectionId: useViewPreferences().value.collectionId ?? null,
+    parentsStatus: "idle" as "idle" | "pending" | "success" | "error",
+    parentsRequest: 0,
     tree: null as TreeItem[] | null,
     refreshLocationsPromise: null as Promise<void> | null,
   }),
@@ -17,45 +20,56 @@ export const useLocationStore = defineStore("locations", {
      * response
      */
     parentLocations(state): EntitySummary[] {
-      if (state.parents === null) {
-        this.client.items.getLocations({ filterChildren: true }).then(result => {
-          if (result.error) {
-            console.error(result.error);
-            return;
-          }
-
-          this.parents = result.data;
-        });
-      }
-      return state.parents ?? [];
+      if ((useViewPreferences().value.collectionId ?? null) !== state.collectionId) return [];
+      return state.parentsStatus === "success" ? (state.parents ?? []) : [];
     },
     allLocations(state): EntitySummary[] {
-      return state.Locations ?? [];
+      return (useViewPreferences().value.collectionId ?? null) === state.collectionId ? (state.Locations ?? []) : [];
     },
   },
   actions: {
+    ensureParentsFetched() {
+      if (this.parentsStatus === "idle") return this.refreshParents();
+    },
     async ensureLocationsFetched() {
       if (this.Locations !== null) {
         return;
       }
 
       if (this.refreshLocationsPromise === null) {
-        this.refreshLocationsPromise = this.refreshChildren().then(() => {});
+        this.refreshLocationsPromise = this.refreshChildren()
+          .then(() => {})
+          .finally(() => {
+            this.refreshLocationsPromise = null;
+          });
       }
       await this.refreshLocationsPromise;
     },
     async refreshParents(): ReturnType<ItemsApi["getLocations"]> {
-      const result = await this.client.items.getLocations({ filterChildren: true });
-      if (result.error) {
+      const request = ++this.parentsRequest;
+      this.parentsStatus = "pending";
+      try {
+        const result = await this.client.items.getLocations({
+          filterChildren: true,
+        });
+        if (request === this.parentsRequest && this.isCurrentCollection()) {
+          this.parentsStatus = result.error ? "error" : "success";
+          this.parents = result.error ? null : result.data;
+        }
         return result;
+      } catch (error) {
+        if (request === this.parentsRequest && this.isCurrentCollection()) this.parentsStatus = "error";
+        return { data: [], error, status: 0 };
       }
-
-      this.parents = result.data;
-      return result;
+    },
+    isCurrentCollection() {
+      return (useViewPreferences().value.collectionId ?? null) === this.collectionId;
     },
     async refreshChildren(): ReturnType<ItemsApi["getLocations"]> {
-      const result = await this.client.items.getLocations({ filterChildren: false });
-      if (result.error) {
+      const result = await this.client.items.getLocations({
+        filterChildren: false,
+      });
+      if (result.error || !this.isCurrentCollection()) {
         return result;
       }
 
@@ -64,7 +78,7 @@ export const useLocationStore = defineStore("locations", {
     },
     async refreshTree(): ReturnType<ItemsApi["getTree"]> {
       const result = await this.client.items.getTree();
-      if (result.error) {
+      if (result.error || !this.isCurrentCollection()) {
         return result;
       }
 

@@ -1,10 +1,18 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import postcss, { type Rule } from "postcss";
 import tailwindcss from "tailwindcss";
 import { describe, expect, it } from "vitest";
 import tailwindConfig from "../../tailwind.config.js";
 import { themes } from "../data/themes";
 import { HOME_DIRECTION_CLASS } from "./home-direction";
+import * as homeDirection from "./home-direction";
+
+function sourceFiles(directory: URL): URL[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const path = new URL(entry.name, directory);
+    return entry.isDirectory() ? sourceFiles(new URL(`${entry.name}/`, directory)) : [path];
+  });
+}
 
 const css = readFileSync(new URL("../../assets/css/main.css", import.meta.url), "utf8");
 const stylesheet = postcss.parse(css);
@@ -35,6 +43,74 @@ describe("Home direction tokens", () => {
     expect(HOME_DIRECTION_CLASS).toBe("direction-evolve");
     expect(themes.map(theme => theme.value)).not.toContain(HOME_DIRECTION_CLASS);
     expect(themes.map(theme => theme.value)).toContain("homebox");
+  });
+
+  it("exposes only a class constant, with no theme-setting API", () => {
+    expect(Object.keys(homeDirection)).toEqual(["HOME_DIRECTION_CLASS"]);
+    const source = readFileSync(new URL("./home-direction.ts", import.meta.url), "utf8");
+    // Strip comments: the contract documents these APIs but must never call them.
+    const code = source.replace(/\/\/[^\n]*/g, "");
+    expect(code.trim()).toBe('export const HOME_DIRECTION_CLASS = "direction-evolve";');
+  });
+
+  it("preserves the existing picker options, including Homebox", () => {
+    expect(themes.map(theme => theme.value)).toEqual([
+      "homebox",
+      "garden",
+      "light",
+      "cupcake",
+      "bumblebee",
+      "emerald",
+      "corporate",
+      "synthwave",
+      "retro",
+      "cyberpunk",
+      "valentine",
+      "halloween",
+      "forest",
+      "aqua",
+      "lofi",
+      "pastel",
+      "fantasy",
+      "wireframe",
+      "black",
+      "luxury",
+      "dracula",
+      "cmyk",
+      "autumn",
+      "business",
+      "acid",
+      "lemonade",
+      "night",
+      "coffee",
+      "winter",
+    ]);
+    expect(themes).toContainEqual({ label: "Homebox", value: "homebox" });
+    for (const { label, value } of themes) {
+      expect(`${label} ${value}`).not.toMatch(/direction-evolve|kellogg|evolve|purple/i);
+    }
+    const picker = readFileSync(new URL("../../components/App/ThemePicker.vue", import.meta.url), "utf8");
+    expect(picker).toContain('import { themes } from "~~/lib/data/themes"');
+    expect(picker).toContain('v-for="theme in themes"');
+  });
+
+  it("leaves routes, layouts and theme persistence without an opt-in consumer", () => {
+    const files = [new URL("../../app.vue", import.meta.url)];
+    for (const directory of ["pages", "layouts", "plugins", "composables", "components"]) {
+      files.push(...sourceFiles(new URL(`../../${directory}/`, import.meta.url)));
+    }
+    for (const file of files.filter(file => /\.(vue|ts|js)$/.test(file.pathname))) {
+      expect(readFileSync(file, "utf8"), file.pathname).not.toMatch(/direction-evolve|HOME_DIRECTION_CLASS/);
+    }
+  });
+
+  it("keeps the referenced institution out of UI copy and public identity assets", () => {
+    for (const directory of ["components", "locales", "public"]) {
+      for (const file of sourceFiles(new URL(`../../${directory}/`, import.meta.url))) {
+        expect(decodeURIComponent(file.pathname)).not.toMatch(/kellogg/i);
+        expect(readFileSync(file).toString("utf8"), file.pathname).not.toMatch(/kellogg/i);
+      }
+    }
   });
 
   it("defines purple emphasis, pale surfaces and 4px corners", () => {
@@ -128,7 +204,12 @@ describe("Home direction tokens", () => {
       tailwindcss({
         ...tailwindConfig,
         safelist: [],
-        content: [{ raw: "shadow shadow-sm shadow-md drop-shadow-md focus:ring-2 blur-sm", extension: "html" }],
+        content: [
+          {
+            raw: "shadow shadow-sm shadow-md drop-shadow-md focus:ring-2 blur-sm",
+            extension: "html",
+          },
+        ],
       }),
     ]).process(css, { from: undefined });
     const generated = postcss.parse(result.css);

@@ -38,7 +38,7 @@ describe("Home direction tokens", () => {
   });
 
   it("defines purple emphasis, pale surfaces and 4px corners", () => {
-    expect(declarations(ruleFor(`.${HOME_DIRECTION_CLASS}`))).toEqual({
+    expect(declarations(ruleFor(`.${HOME_DIRECTION_CLASS}`))).toMatchObject({
       "--background": "270 20% 97%",
       "--background-accent": "270 20% 95%",
       "--foreground": "270 8% 16%",
@@ -67,6 +67,38 @@ describe("Home direction tokens", () => {
       "--sidebar-ring": "267 56% 33%",
       "--radius": "0.25rem",
     });
+  });
+
+  it("provides optional local display and sans faces with ordered offline fallbacks", () => {
+    expect(declarations(ruleFor(`.${HOME_DIRECTION_CLASS}`))).toMatchObject({
+      "--font-sans":
+        'Roboto, Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "--font-display": "Petrona, Georgia, serif",
+      "font-family": "var(--font-sans)",
+    });
+    expect(declarations(ruleFor(".direction-evolve .font-display"))).toEqual({
+      "font-family": "var(--font-display)",
+    });
+  });
+
+  it("confines font roles to the scope and does not request network fonts", () => {
+    stylesheet.walkDecls(/^(--font-sans|--font-display)$/, decl => {
+      expect((decl.parent as Rule).selector).toBe(`.${HOME_DIRECTION_CLASS}`);
+    });
+    stylesheet.walkDecls("font-family", decl => {
+      if (decl.value.includes("var(--font-display)")) {
+        expect((decl.parent as Rule).selector).toBe(".direction-evolve .font-display");
+      }
+      if (decl.value.includes("var(--font-sans)")) {
+        expect((decl.parent as Rule).selector).toBe(`.${HOME_DIRECTION_CLASS}`);
+      }
+    });
+    stylesheet.walkRules(rule => {
+      if (rule.selector.includes(".font-display")) {
+        expect(rule.selector).toBe(".direction-evolve .font-display");
+      }
+    });
+    expect(css).not.toMatch(/@import|@font-face|fonts\.googleapis\.com|fonts\.gstatic\.com/i);
   });
 
   it("keeps Homebox defaults intact", () => {
@@ -106,6 +138,7 @@ describe("Home direction tokens", () => {
     });
     expect(selectors).toContain(`.${HOME_DIRECTION_CLASS}`);
     expect(selectors).toContain(shadowSelector);
+    expect(selectors).toContain(".direction-evolve .font-display");
     expect(selectors).toContain(".focus\\:ring-2:focus");
     expect(result.css).toContain("var(--tw-ring-shadow)");
     expect(result.css).toContain("var(--tw-drop-shadow)");

@@ -497,6 +497,12 @@
         "entity_type": "Entity Type"
     },
     "home": {
+        "collection_overview": "{collection} · Collection overview",
+        "overview_headline": "A place for everything.",
+        "overview_supporting": "Your inventory, organized. Find what you own and where it belongs.",
+        "welcome_home": "Welcome home, {name}.",
+        "collection_summary": "{items} items across {locations} locations.",
+        "one_collection": "One collection. All in view.",
         "quick_statistics": "Quick Statistics",
         "recently_added": "Recently Added",
         "storage_locations": "Storage Locations",

@@ -21,7 +21,7 @@ export function statCardData(api: UserClient) {
     }
   );
 
-  return computed(() => {
+  const stats = computed(() => {
     return [
       {
         label: t("home.total_value"),
@@ -45,4 +45,7 @@ export function statCardData(api: UserClient) {
       },
     ] as StatCard[];
   });
+
+  // The overview and cards share the same request and loading state.
+  return { stats, statistics };
 }

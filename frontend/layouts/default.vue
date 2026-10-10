@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :class="homePresentationClass">
     <!--
     Confirmation Modal is a singleton used by all components so we render
     it here to ensure it's always available. Possibly could move this further
@@ -17,7 +17,7 @@
     <CollectionJoinModal />
     <CollectionInviteCreateModal />
     <SidebarProvider :default-open="sidebarState">
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="icon" :mobile-content-class="homePresentationClass">
         <SidebarHeader class="items-center">
           <SidebarGroupLabel class="text-base group-data-[collapsible=icon]:hidden">{{
             $t("global.welcome", { username: username })
@@ -28,7 +28,7 @@
             </div>
           </NuxtLink>
 
-          <CollectionSelector />
+          <CollectionSelector :presentation-class="homePresentationClass" />
 
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
@@ -43,7 +43,10 @@
                 </span>
               </SidebarMenuButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent class="z-40 min-w-[var(--reka-dropdown-menu-trigger-width)]">
+            <DropdownMenuContent
+              class="z-40 min-w-[var(--reka-dropdown-menu-trigger-width)]"
+              :class="homePresentationClass"
+            >
               <DropdownMenuItem
                 v-for="btn in dropdown"
                 :key="btn.id"
@@ -53,10 +56,14 @@
                     if (btn.dialogId === DialogID.CreateEntity) {
                       if (btn.id == 0)
                         // create item
-                        openDialog(btn.dialogId, { params: { baseType: 'item' } });
+                        openDialog(btn.dialogId, {
+                          params: { baseType: 'item' },
+                        });
                       else if (btn.id == 1)
                         // create location
-                        openDialog(btn.dialogId, { params: { baseType: 'location' } });
+                        openDialog(btn.dialogId, {
+                          params: { baseType: 'location' },
+                        });
                     } else {
                       openDialog(btn.dialogId as NoParamDialogIDs);
                     }
@@ -383,6 +390,11 @@
   ];
 
   const route = useRoute();
+  // Scope tokens to this route, never to body or the saved theme preference.
+  // Pass the same opt-in scope to content rendered outside #app by portals.
+  const homePresentationClass = computed(() =>
+    route.path.replace(/\/$/, "") === "/home" ? "home-presentation" : undefined
+  );
   const router = useRouter();
 
   const nav: {

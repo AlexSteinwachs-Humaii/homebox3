@@ -29,7 +29,10 @@
       </Button>
     </PopoverTrigger>
     <PopoverContent
-      :class="[sidebar.state.value === 'collapsed' ? 'min-w-48 p-0' : 'w-[--reka-popper-anchor-width] p-0']"
+      :class="[
+        sidebar.state.value === 'collapsed' ? 'min-w-48 p-0' : 'w-[--reka-popper-anchor-width] p-0',
+        presentationClass,
+      ]"
     >
       <Command :ignore-filter="true">
         <CommandGroup>
@@ -42,7 +45,8 @@
               }
             "
           >
-            <Plus class="mr-2 size-4" /> {{ t("components.collection.selector.create_collection") }}
+            <Plus class="mr-2 size-4" />
+            {{ t("components.collection.selector.create_collection") }}
           </CommandItem>
           <CommandItem
             value="join-collection"
@@ -53,7 +57,8 @@
               }
             "
           >
-            <UserPlus class="mr-2 size-4" /> {{ t("components.collection.selector.join_collection") }}
+            <UserPlus class="mr-2 size-4" />
+            {{ t("components.collection.selector.join_collection") }}
           </CommandItem>
           <CommandItem as-child value="collection-settings">
             <NuxtLink to="/collection/members" class="flex w-full items-center" @click="open = false">
@@ -104,6 +109,9 @@
   import { useI18n } from "vue-i18n";
   import { DialogID } from "@/components/ui/dialog-provider/utils";
   import { useDialog } from "~/components/ui/dialog-provider";
+
+  // Explicit opt-in for the teleported popover; other consumers keep their theme.
+  defineProps<{ presentationClass?: string }>();
 
   const { openDialog } = useDialog();
 

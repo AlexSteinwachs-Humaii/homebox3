@@ -92,13 +92,21 @@
       </section>
 
       <section>
-        <Subtitle> {{ $t("home.recently_added") }} </Subtitle>
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+          <Subtitle> {{ $t("home.recently_added") }} </Subtitle>
+          <NuxtLink to="/items" class="text-sm font-semibold text-primary hover:underline">
+            {{ $t("home.search_inventory") }}
+          </NuxtLink>
+        </div>
 
         <p v-if="itemTable.items.length === 0" class="ml-2 text-sm">
           {{ $t("items.no_results") }}
         </p>
         <BaseCard v-else-if="breakpoints.lg">
-          <Table :items="itemTable.items" />
+          <Table
+            :items="itemTable.items"
+            :visible-column-ids="['assetId', 'name', 'quantity', 'insured', 'purchasePrice', 'location', 'archived']"
+          />
         </BaseCard>
         <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <ItemCard v-for="item in itemTable.items" :key="item.id" :item="item" />

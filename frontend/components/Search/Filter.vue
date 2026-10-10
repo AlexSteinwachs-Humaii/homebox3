@@ -6,7 +6,7 @@
         <MdiChevronDown class="transition-transform group-data-[state=open]/filter:rotate-180" />
       </Button>
     </PopoverTrigger>
-    <PopoverContent class="z-40 p-0">
+    <PopoverContent :class="['z-40 p-0', contentClass]">
       <div class="p-4 shadow-sm">
         <Input v-model="search" type="text" :placeholder="$t('components.search.filter.search_placeholder')" />
       </div>
@@ -51,6 +51,7 @@
 
   type Props = {
     label?: string;
+    contentClass?: string;
     options: {
       name: string;
       id: string;
@@ -69,6 +70,7 @@
   const emit = defineEmits(["update:modelValue"]);
   const props = withDefaults(defineProps<Props>(), {
     label: "",
+    contentClass: "",
     modelValue: () => [],
   });
 

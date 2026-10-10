@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :class="{ [HOME_DIRECTION_CLASS]: isHomeDirection }">
     <!--
     Confirmation Modal is a singleton used by all components so we render
     it here to ensure it's always available. Possibly could move this further
@@ -23,7 +23,8 @@
             $t("global.welcome", { username: username })
           }}</SidebarGroupLabel>
           <NuxtLink class="group-data-[collapsible=icon]:hidden" to="/home">
-            <div class="flex size-24 items-center justify-center rounded-full bg-background-accent p-4">
+            <span v-if="isHomeDirection" class="text-3xl font-bold text-primary">HomeBox</span>
+            <div v-else class="flex size-24 items-center justify-center rounded-full bg-background-accent p-4">
               <AppLogo />
             </div>
           </NuxtLink>
@@ -236,6 +237,7 @@
 
 <script lang="ts" setup>
   import { useI18n } from "vue-i18n";
+  import { HOME_DIRECTION_CLASS } from "~/lib/direction/home-direction";
   import DOMPurify from "dompurify";
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
@@ -383,6 +385,8 @@
   ];
 
   const route = useRoute();
+  // Scope the shared shell without changing the person's selected theme.
+  const isHomeDirection = computed(() => route.path === "/home");
   const router = useRouter();
 
   const nav: {

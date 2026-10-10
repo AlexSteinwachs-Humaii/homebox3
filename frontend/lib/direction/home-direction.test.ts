@@ -94,13 +94,50 @@ describe("Home direction tokens", () => {
     expect(picker).toContain('v-for="theme in themes"');
   });
 
-  it("leaves routes, layouts and theme persistence without an opt-in consumer", () => {
+  it("limits the opt-in consumer to the shared default layout", () => {
     const files = [new URL("../../app.vue", import.meta.url)];
     for (const directory of ["pages", "layouts", "plugins", "composables", "components"]) {
       files.push(...sourceFiles(new URL(`../../${directory}/`, import.meta.url)));
     }
+    const layout = new URL("../../layouts/default.vue", import.meta.url);
     for (const file of files.filter(file => /\.(vue|ts|js)$/.test(file.pathname))) {
+      if (file.href === layout.href) continue;
       expect(readFileSync(file, "utf8"), file.pathname).not.toMatch(/direction-evolve|HOME_DIRECTION_CLASS/);
+    }
+    const source = readFileSync(layout, "utf8");
+    expect(source).toContain('import { HOME_DIRECTION_CLASS } from "~/lib/direction/home-direction"');
+    expect(source).toContain('<div id="app" :class="{ [HOME_DIRECTION_CLASS]: isHomeDirection }">');
+    expect(source).toContain('const isHomeDirection = computed(() => route.path === "/home")');
+    expect(source).not.toMatch(/useTheme\(|data-theme|theme-\$|preferences(?:\.value)?\.theme\s*=/);
+  });
+
+  it("switches only the sidebar identity, preserving primary/accent styling and shell controls", () => {
+    const source = readFileSync(new URL("../../layouts/default.vue", import.meta.url), "utf8");
+    expect(source).toContain('<span v-if="isHomeDirection" class="text-3xl font-bold text-primary">HomeBox</span>');
+    expect(source).toMatch(/<div v-else class="flex size-24[^"]*rounded-full[^"]*">\s*<AppLogo \/>/);
+    expect(source).toContain("bg-accent text-accent-foreground");
+    expect(source).toContain("bg-primary text-primary-foreground");
+    expect(source).toContain('@keyup.enter="triggerSearch"');
+    expect(source).toContain('@click="openScanner"');
+    expect(source).toContain('@click.prevent="openDialog(DialogID.Scanner)"');
+    expect(source).toContain('v-if="preferences.displayLegacyHeader"');
+    expect(source).toContain('data-testid="logout-button"');
+    for (const destination of [
+      "/home",
+      "/locations",
+      "/tags",
+      "/items",
+      "/templates",
+      "/maintenance",
+      "/profile",
+      "/collection/members",
+      "/collection/invites",
+      "/collection/notifiers",
+      "/collection/settings",
+      "/collection/entity-types",
+      "/collection/tools",
+    ]) {
+      expect(source).toContain(`to: "${destination}"`);
     }
   });
 

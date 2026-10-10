@@ -31,3 +31,27 @@ Example for the subsequent dashboard work:
 Named `--home-*` tokens are available for additional opt-in treatments. Existing semantic HSL token pairs are overridden together so components do not inherit a dark theme's foreground onto light Home surfaces. Focus has a purple outline and white separation, with a system-color outline in forced-colors mode. No remote fonts or branded assets are required.
 
 `test/e2e/home-shell.browser.spec.ts` tests the actual compiled stylesheet in an isolated browser fixture, including two selected themes, scope removal/reapplication, a portal scope, typography, keyboard focus and semantic contrast. This foundation fixture does not validate real route navigation, authentication, permissions or shell interactions; those belong to the following shell stories.
+
+## Functional shell
+
+`layouts/default.vue` uses `home-shell-*` hooks only under the existing reactive
+Home scope. The sidebar retains AppLogo, the collection selector and its reload
+behavior, all existing destinations, the collapsible collection section, Create
+handlers, quick-menu shortcuts and logout. The header uses the selected collection
+and authenticated user's initials; the profile link targets `/profile`. No new
+permission rules or backend contracts are introduced. Legacy-header preference and
+shared 64px/112px header heights remain unchanged (including inventory edit offsets).
+The prototype's header height, logo and decorative search arrow are adapted to
+these existing product contracts. Dashboard content belongs to the later item.
+
+The Home Create shortcut hint uses a native title instead of the shared top tooltip:
+that tooltip overlapped the collection selector after dialog focus returned. The
+actual Ctrl+Backquote and Shift+1/2/3 handlers are unchanged.
+
+Integration tests in `test/e2e/home-shell.browser.spec.ts` require a demo API and
+built frontend, or Nuxt dev with its API proxy. Use `E2E_BASE_URL` to select the
+server; tests create uniquely named collections in the demo database. They cover
+real search submissions, identity/profile, logout, collection creation/switch/reload,
+primary navigation, Create/join dialogs, keyboard shortcuts and camera denial.
+Owner/member authorization and physical camera operation still need an appropriate
+multi-user/device environment; this story does not alter their enforcement paths.

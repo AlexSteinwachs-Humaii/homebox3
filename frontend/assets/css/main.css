@@ -1241,3 +1241,148 @@ h6 {
     outline-color: Highlight;
   }
 }
+
+/* Functional Home shell: geometry is opt-in; shared header heights stay intact. */
+.home-presentation::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: 6px;
+  background: var(--home-purple);
+  z-index: 50;
+  pointer-events: none;
+}
+.home-presentation .home-shell-sidebar-header {
+  align-items: stretch;
+  padding: 28px 20px 14px;
+  gap: 12px;
+}
+.home-presentation .home-shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--home-purple);
+  font-size: 26px;
+  font-weight: 700;
+}
+.home-presentation .home-shell-sidebar-header [data-sidebar="group-label"] {
+  padding: 0;
+  height: auto;
+  margin-bottom: 14px;
+  color: var(--home-muted);
+  font-size: 13px;
+}
+.home-presentation .home-shell-sidebar-header [role="combobox"] {
+  height: 44px;
+  filter: none;
+  font-weight: 700;
+}
+.home-presentation .home-shell-create {
+  height: 44px;
+  filter: none;
+  font-size: 15px;
+  font-weight: 700;
+}
+.home-presentation [data-sidebar="group"] {
+  padding: 8px 20px;
+}
+.home-presentation [data-sidebar="menu-button"] {
+  font-size: 14px;
+}
+.home-presentation [data-sidebar="menu-button"][aria-current="page"] {
+  border-left: 3px solid var(--home-purple);
+  font-weight: 700;
+}
+.home-presentation .home-shell-collection {
+  margin-top: 12px;
+}
+.home-presentation .home-shell-collection > a {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.home-presentation .home-shell-submenu {
+  border-color: var(--home-border);
+}
+.home-presentation .home-shell-submenu [data-sidebar="menu-button"] {
+  font-size: 13px;
+}
+.home-presentation [data-sidebar="footer"] {
+  margin: 0 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--home-border);
+}
+.home-presentation .home-shell-header {
+  background: var(--home-surface);
+  border-bottom: 1px solid var(--home-border);
+  box-shadow: none;
+  transform: none;
+  padding-inline: 28px;
+}
+.home-presentation .home-shell-header input {
+  background: var(--home-page);
+}
+.home-presentation .home-shell-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-size: 13px;
+}
+.home-presentation .home-shell-breadcrumb > span:first-child {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--home-muted);
+}
+.home-presentation .home-shell-scanner {
+  gap: 8px;
+  color: var(--home-purple);
+  font-weight: 700;
+}
+.home-presentation .home-shell-profile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--home-soft);
+  color: var(--home-purple);
+  font-size: 12px;
+  font-weight: 700;
+}
+/* Do not fight Reka's collapsed dimensions or hide the mobile Sheet content. */
+.home-presentation .group[data-collapsible="icon"] .home-shell-brand {
+  display: none;
+}
+.home-presentation .group[data-collapsible="icon"] .home-shell-sidebar-header,
+.home-presentation .group[data-collapsible="icon"] [data-sidebar="group"] {
+  padding: 8px;
+}
+.home-presentation .group[data-collapsible="icon"] [data-sidebar="footer"] {
+  margin: 0;
+  padding: 8px;
+}
+@media (max-width: 639px) {
+  .home-presentation .home-shell-header {
+    padding-inline: 8px;
+  }
+}
+.home-presentation [data-sidebar="sidebar"] {
+  border-right: 1px solid var(--home-border);
+}
+.home-presentation [data-sidebar="menu-button"][data-size="lg"] {
+  height: 40px;
+}
+.home-presentation .home-shell-submenu [data-sidebar="menu-button"] {
+  height: auto;
+  min-height: 28px;
+}
+
+.home-presentation .home-shell-header [data-sidebar="trigger"] svg {
+  color: var(--home-muted);
+}

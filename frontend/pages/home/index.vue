@@ -79,7 +79,15 @@
       <section>
         <Subtitle> {{ $t("home.quick_statistics") }} </Subtitle>
         <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-6">
-          <StatCard v-for="(stat, i) in stats" :key="i" :title="stat.label" :value="stat.value" :type="stat.type" />
+          <StatCard
+            v-for="(stat, i) in stats"
+            :key="i"
+            :title="stat.label"
+            :value="stat.value"
+            :type="stat.type"
+            :subtitle="stat.subtitle"
+            :variant="stat.variant"
+          />
         </div>
       </section>
 

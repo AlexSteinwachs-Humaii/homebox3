@@ -38,6 +38,12 @@ describe("Home collection overview", () => {
     expect(asyncData).toHaveBeenCalledOnce();
     expect(group).toHaveBeenCalledOnce();
     expect(result.stats.value.map(stat => stat.value)).toEqual([42, 17, 3, 2]);
+    expect(result.stats.value.map(stat => [stat.label, stat.type, stat.variant, stat.subtitle])).toEqual([
+      ["home.total_value", "currency", "filled", "home.recorded_inventory_value"],
+      ["home.total_items", "number", "outline", "home.items_in_collection"],
+      ["home.total_locations", "number", "outline", "home.places_to_keep_things"],
+      ["home.total_tags", "number", "outline", "home.ways_to_organize"],
+    ]);
     statistics.value = {
       totalItems: 0,
       totalLocations: 0,

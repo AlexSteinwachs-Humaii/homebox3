@@ -5,7 +5,6 @@
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
   import BaseContainer from "@/components/Base/Container.vue";
-  import Subtitle from "~/components/global/Subtitle.vue";
   import StatCard from "~/components/global/StatCard/StatCard.vue";
   import ItemCard from "~/components/Item/Card.vue";
   import LocationCard from "~/components/Location/Card.vue";
@@ -135,23 +134,37 @@
         </div>
       </section>
 
-      <section>
-        <Subtitle> {{ $t("home.storage_locations") }} </Subtitle>
+      <section class="home-section min-w-0" aria-labelledby="home-locations-title">
+        <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="home-locations-title" class="home-section-title">
+            {{ $t("home.storage_locations") }}
+          </h2>
+          <NuxtLink to="/locations" class="home-text-action">
+            {{ $t("home.all_locations") }} <span aria-hidden="true">→</span>
+          </NuxtLink>
+        </div>
         <p v-if="locations.length === 0" class="ml-2 text-sm">
           {{ $t("locations.no_results") }}
         </p>
         <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-          <LocationCard v-for="location in locations" :key="location.id" :location="location" />
+          <LocationCard v-for="location in locations" :key="location.id" :location="location" home />
         </div>
       </section>
 
-      <section>
-        <Subtitle> {{ $t("home.tags") }} </Subtitle>
+      <section class="home-section min-w-0" aria-labelledby="home-tags-title">
+        <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="home-tags-title" class="home-section-title">
+            {{ $t("home.tags") }}
+          </h2>
+          <NuxtLink to="/tags" class="home-text-action">
+            {{ $t("home.all_tags") }} <span aria-hidden="true">→</span>
+          </NuxtLink>
+        </div>
         <p v-if="tags.length === 0" class="ml-2 text-sm">
           {{ $t("tags.no_results") }}
         </p>
-        <div v-else class="flex flex-wrap gap-4">
-          <TagChip v-for="tag in tags" :key="tag.id" size="lg" :tag="tag" class="shadow-md" />
+        <div v-else class="flex min-w-0 flex-wrap gap-2">
+          <TagChip v-for="tag in tags" :key="tag.id" :tag="tag" home hide-icon />
         </div>
       </section>
     </BaseContainer>

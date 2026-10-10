@@ -19,11 +19,24 @@ const totals = {
 
 async function mockHome(
   page: Page,
-  options: { name?: string; user?: string; items?: unknown[]; inventoryPreferences?: boolean } = {}
+  options: {
+    name?: string;
+    user?: string;
+    items?: unknown[];
+    locations?: unknown[];
+    tags?: unknown[];
+    inventoryPreferences?: boolean;
+  } = {}
 ) {
   const name = options.name ?? "Workshop";
   const user = options.user ?? "Morgan";
-  await page.context().addCookies([{ name: "hb.auth.session", value: "true", url: test.info().project.use.baseURL! }]);
+  await page.context().addCookies([
+    {
+      name: "hb.auth.session",
+      value: "true",
+      url: test.info().project.use.baseURL!,
+    },
+  ]);
   await page.addInitScript(
     ({ id, inventoryPreferences }) => {
       localStorage.setItem(
@@ -52,7 +65,7 @@ async function mockHome(
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
     if (path === "/api/v1/entities" && new URL(route.request().url()).searchParams.get("isLocation") === "true")
-      body = { items: [] };
+      body = { items: options.locations ?? [] };
     else if (path === "/api/v1/users/self")
       body = {
         item: {
@@ -64,12 +77,18 @@ async function mockHome(
           isAdmin: true,
         },
       };
+    else if (path === "/api/v1/tags") body = options.tags ?? [];
     else if (path === "/api/v1/users/self/settings") body = { item: {} };
     else if (path === "/api/v1/groups/all") body = [{ id: collectionId, name }];
     else if (path === "/api/v1/groups") body = { id: collectionId, name, currency: "EUR" };
     else if (path === "/api/v1/groups/statistics") body = totals;
     else if (path === "/api/v1/entities")
-      body = { items: options.items ?? [], total: options.items?.length ?? 0, page: 1, pageSize: 5 };
+      body = {
+        items: options.items ?? [],
+        total: options.items?.length ?? 0,
+        page: 1,
+        pageSize: 5,
+      };
     else if (path === "/api/v1/status")
       body = {
         health: true,
@@ -118,7 +137,15 @@ test("pending and failed statistics never show successful zero totals; retry dis
       await deferred;
       await route.fulfill({ status: 500, json: { error: "unavailable" } });
     } else {
-      await route.fulfill({ json: { ...totals, totalItemPrice: 0, totalItems: 0, totalLocations: 0, totalTags: 0 } });
+      await route.fulfill({
+        json: {
+          ...totals,
+          totalItemPrice: 0,
+          totalItems: 0,
+          totalLocations: 0,
+          totalTags: 0,
+        },
+      });
     }
   });
   await page.goto("/home");
@@ -224,7 +251,10 @@ test("Home fixes all seven columns, retains real data and does not mutate invent
   await item.press("Enter");
   await expect(page).toHaveURL(/\/item\/recent-0$/);
   await page.goto("/home");
-  const location = recentSection(page).getByRole("link", { name: "Garage", exact: true });
+  const location = recentSection(page).getByRole("link", {
+    name: "Garage",
+    exact: true,
+  });
   await location.focus();
   await location.press("Enter");
   await expect(page).toHaveURL(/\/location\/garage$/);
@@ -243,7 +273,15 @@ test("Home fixes all seven columns, retains real data and does not mutate invent
 
 test("recent inventory remains contained with long labels and mobile item cards", async ({ page }) => {
   const name = "Long inventory name ".repeat(30);
-  await mockHome(page, { items: [{ ...recentItems[0], name, parent: { id: "garage", name: "G".repeat(100) } }] });
+  await mockHome(page, {
+    items: [
+      {
+        ...recentItems[0],
+        name,
+        parent: { id: "garage", name: "G".repeat(100) },
+      },
+    ],
+  });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/home");
   await expect(recentSection(page).getByRole("table")).toBeVisible();
@@ -258,4 +296,90 @@ test("recent inventory remains contained with long labels and mobile item cards"
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await recentSection(page).scrollIntoViewIfNeeded();
   await page.screenshot({ path: "test-results/home-recent-mobile.png" });
+});
+
+const locationsSection = (page: Page) => page.getByRole("region", { name: "Storage Locations" });
+const tagsSection = (page: Page) => page.getByRole("region", { name: "Tags", exact: true });
+const liveLocations = [
+  { id: "place-0", name: "Craft cupboard", itemCount: 0 },
+  { id: "place-1", name: "Reading nook", itemCount: 1 },
+  { id: "place-2", name: "Pantry", itemCount: 23 },
+  { id: "place-3", name: "Uncounted place" },
+];
+const liveTags = [{ id: "label-1", name: "Handmade", color: "#ff0000", icon: "mdi:tag" }];
+
+test("Home live compact locations and tags preserve counts, order and route actions", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockHome(page, { locations: liveLocations, tags: liveTags });
+  await page.goto("/home");
+  const locations = locationsSection(page);
+  const tags = tagsSection(page);
+  await expect(locations.locator(".home-location-card")).toHaveCount(4);
+  await expect(locations.getByRole("link", { name: /Craft cupboard/ })).toContainText("0 items");
+  await expect(locations.getByRole("link", { name: /Reading nook/ })).toContainText("1 item");
+  await expect(locations.getByRole("link", { name: /Pantry/ })).toContainText("23 items");
+  await expect(locations.getByRole("link", { name: "Uncounted place" })).not.toContainText("items");
+  await expect(tags.locator(".home-tag-chip")).toHaveCSS("background-color", "rgb(238, 232, 245)");
+  await expect(tags.locator(".home-tag-chip")).toHaveCSS("border-top-width", "1px");
+  const headings = await page.getByRole("heading").allTextContents();
+  expect(headings.indexOf("Recently Added")).toBeLessThan(headings.indexOf("Storage Locations"));
+  expect(headings.indexOf("Storage Locations")).toBeLessThan(headings.indexOf("Tags"));
+  await page.screenshot({
+    path: "test-results/home-locations-tags-desktop.png",
+    fullPage: true,
+  });
+  const location = locations.getByRole("link", { name: /Craft cupboard/ });
+  await location.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/location\/place-0$/);
+  await page.goto("/home");
+  await tagsSection(page).getByRole("link", { name: "Handmade", exact: true }).click();
+  await expect(page).toHaveURL(/\/tag\/label-1$/);
+  await page.goto("/home");
+  await locationsSection(page).getByRole("link", { name: "All locations" }).click();
+  await expect(page).toHaveURL(/\/locations$/);
+  // Home-only presentation does not leak into the locations route.
+  await expect(page.locator(".home-location-card")).toHaveCount(0);
+  await page.goto("/home");
+  await tagsSection(page).getByRole("link", { name: "All tags" }).click();
+  await expect(page).toHaveURL(/\/tags$/);
+  await expect(page.locator(".home-tag-chip")).toHaveCount(0);
+});
+
+test("Home empty location and tag sets keep all-entry actions", async ({ page }) => {
+  await mockHome(page);
+  await page.goto("/home");
+  await expect(locationsSection(page)).toContainText(/No locations found/i);
+  await expect(tagsSection(page)).toContainText(/No tags found/i);
+  await expect(locationsSection(page).getByRole("link", { name: "All locations" })).toBeVisible();
+  await expect(tagsSection(page).getByRole("link", { name: "All tags" })).toBeVisible();
+});
+
+test("Home renders every location/tag and wraps long labels on desktop and mobile", async ({ page }) => {
+  const longLabel = "LongUnbrokenInventoryLabel".repeat(10);
+  const locations = Array.from({ length: 18 }, (_, i) => ({
+    id: `many-place-${i}`,
+    name: `${longLabel}${i}`,
+    itemCount: i,
+  }));
+  const tags = Array.from({ length: 22 }, (_, i) => ({
+    id: `many-tag-${i}`,
+    name: `${longLabel}${i}`,
+  }));
+  await mockHome(page, { locations, tags });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/home");
+    await expect(locationsSection(page).locator(".home-location-card")).toHaveCount(18);
+    await expect(tagsSection(page).locator(".home-tag-chip")).toHaveCount(22);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await page.screenshot({
+    path: "test-results/home-locations-tags-mobile.png",
+    fullPage: true,
+  });
+  await tagsSection(page)
+    .getByRole("link", { name: `${longLabel}21`, exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/tag\/many-tag-21$/);
 });

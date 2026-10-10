@@ -1,5 +1,19 @@
 <template>
-  <Card>
+  <NuxtLink
+    v-if="home"
+    :to="`/location/${location.id}`"
+    class="home-surface home-location-card flex min-w-0 items-center gap-3 p-4"
+  >
+    <MdiMapMarkerOutline class="size-5 shrink-0" aria-hidden="true" />
+    <span class="min-w-0 flex-1">
+      <span class="block break-words text-sm font-bold">{{ location.name }}</span>
+      <span v-if="homeCount !== undefined" class="home-muted mt-1 block text-xs">
+        {{ $t("home.item_count", { count: homeCount }, homeCount) }}
+      </span>
+    </span>
+    <span class="shrink-0" aria-hidden="true">→</span>
+  </NuxtLink>
+  <Card v-else>
     <NuxtLink :to="`/location/${location.id}`" class="group/location-card transition duration-300">
       <div
         :class="{
@@ -40,10 +54,16 @@
       type: Object as () => EntitySummary | EntityOut,
       required: true,
     },
+    home: { type: Boolean, default: false },
     dense: {
       type: Boolean,
       default: false,
     },
+  });
+
+  const homeCount = computed(() => {
+    const value = (props.location as EntitySummary).itemCount;
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
   });
 
   const hasCount = computed(() => {
@@ -54,3 +74,17 @@
     return hasCount.value ? (props.location as EntitySummary).itemCount : undefined;
   });
 </script>
+
+<style scoped>
+  .home-location-card > svg,
+  .home-location-card > span:last-child {
+    color: var(--home-purple);
+  }
+  .home-location-card:hover {
+    border-color: var(--home-purple);
+  }
+  .home-location-card:focus-visible {
+    outline: 2px solid var(--home-purple);
+    outline-offset: 3px;
+  }
+</style>

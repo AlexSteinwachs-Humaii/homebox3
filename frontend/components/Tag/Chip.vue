@@ -10,6 +10,7 @@
       type: Object as () => TagOut | TagSummary,
       required: true,
     },
+    home: { type: Boolean, default: false },
     size: {
       type: String as () => sizes,
       default: "md",
@@ -30,7 +31,12 @@
 </script>
 
 <template>
+  <NuxtLink v-if="home" :to="`/tag/${tag.id}`" class="home-tag-chip min-w-0 max-w-full">
+    <component :is="chipIcon" v-if="!hideIcon" class="size-4 shrink-0" aria-hidden="true" />
+    <span class="min-w-0 break-words">{{ tag.name }}</span>
+  </NuxtLink>
   <NuxtLink
+    v-else
     class="group/tag-chip flex gap-2 rounded-full border shadow transition duration-300 hover:bg-accent/50"
     :class="{
       'p-4 py-1 text-base': size === 'lg',
@@ -61,3 +67,24 @@
     {{ tag.name }}
   </NuxtLink>
 </template>
+
+<style scoped>
+  .home-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--home-border);
+    border-radius: var(--home-radius);
+    background: var(--home-soft);
+    color: var(--home-purple);
+    font-size: 0.75rem;
+  }
+  .home-tag-chip:hover {
+    border-color: var(--home-purple);
+  }
+  .home-tag-chip:focus-visible {
+    outline: 2px solid var(--home-purple);
+    outline-offset: 3px;
+  }
+</style>

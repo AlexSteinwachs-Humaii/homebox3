@@ -501,6 +501,8 @@
         "search_inventory": "Search inventory",
         "recently_added": "Recently Added",
         "storage_locations": "Storage Locations",
+    "all_locations": "All locations",
+    "all_tags": "All tags",
         "tags": "Tags",
         "total_items": "Total Items",
         "total_locations": "Total Locations",
